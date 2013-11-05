@@ -1,0 +1,37 @@
+/*
+:Author: Antonio Delgado Peris, CIEMAT.
+:Copyright: This stylesheet has been placed in the public domain.
+
+Stylesheet for use with Docutils for CIEMAT howtos. 
+*/
+
+@import /var/www/cgi-bin/howtos/txt2html/html4css1.css;
+
+
+/* CIEMAT HowTo's customizations follow */
+
+
+/* Background */
+body {background-color:WhiteSmoke ;}
+
+/* Normal literal blocks and inlines (no ..code directive) */
+pre.literal-block {
+  color:Darkred;background-color:SeaShell;overflow:auto
+}
+tt.docutils{font-family:monospace;color:Darkred}
+
+/* Auto-generated tables */
+table { 
+  border: 2px solid black;
+  border-collapse:collapse;
+}
+tr:nth-child(odd)  { background-color:Ivory; }
+tr:nth-child(even) { background-color:LightGray; }
+th { background-color:LightBlue; }
+td {
+ font-family:monospace;
+ color:blue;
+ text-align:center;
+ border: 1px solid Gray; 
+}
+
