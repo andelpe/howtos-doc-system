@@ -13,52 +13,81 @@
  font-size: 11pt;
  background: Beige;
 } 
+textarea {
+ font-size: 11pt;
+ background: Beige;
+} 
 #status {
  color: red;
 }
 </style>
 
+
 <script>
+
  window.onload = function() {
 
-    var myCodeMirror = CodeMirror.fromTextArea(
-      editArea, 
-      {lineNumbers: true}
-    );
+//    var iniText = $("#editArea").val();
+    var clean = 1;
 
-    myCodeMirror.setSize("100%%", "100%%");
-    myCodeMirror.on("change", function(myCodeMirror, change) {
-      $("#status").text("Modified");
-      });
+    // Try to load CodeMirror... 
+    try{
+        var myCodeMirror = CodeMirror(document.body,
+          {value: $("#editArea").val(), lineNumbers: true}
+        );
+        $("#editArea").remove();
+        myCodeMirror.setSize("100%%", "100%%");
+        myCodeMirror.on("change", function(myCodeMirror, change) {
+          $("#status").text("Modified");
+          clean = 0;
+          });
 
+    }
+    // ...but if the rst parsing fails, fall back to simple textarea
+    catch(err){
+        $('#editArea').nextAll().remove();
+        $('#editArea').bind('input propertychange', function() {
+           $("#status").text("Modified");
+           clean = 0;
+        });
+    }
+    
+    // Define function of the reset button (reload contents, set 'clean')
     $("#resetButton").click(function(){
        $.get("/cgi-bin/howtos/howtos.py",
          {format: "text", page: "%(title)s"},
          function(data){
-           myCodeMirror.setValue(data); 
-           $("#status").text("");
-           myCodeMirror.markClean();
+             clean = 1;
+             // If codemirror worked, use it, otherwise textarea
+             try{         myCodeMirror.setValue(data); }
+             catch(err){  $('#editArea').val(data);    }
+             $("#status").text("");
          }
        )
     });
 
+    // Define function of the cancel button (just go to index)
     $("#cancelButton").click(function(){
         location.href="/cgi-bin/howtos/howtos.py";
     });
 
+    // Define function of the save button (send title and contents to save form)
     $("#saveButton").click(function(){
-       if (myCodeMirror.isClean()){
+       if (clean == 1){
           alert("Document clean. Nothing to save.");
        }
        else{
-         $.post("/cgi-bin/howtos/howtos.py",
-           {action: "save", page: "%(title)s", contents: myCodeMirror.getValue()},
-           function(data){
-             alert("Saved"); 
-             $("#status").text("");
-             myCodeMirror.markClean();
-           }
-         )
+          // If codemirror worked, use it, otherwise textarea
+          try{        var thecontents = myCodeMirror.getValue(); }
+          catch(err){ var thecontents = $('#editArea').val();    }
+          $.post("/cgi-bin/howtos/howtos.py",
+            {action: "save", page: "%(title)s", contents: thecontents},
+            function(data){
+              alert("Saved"); 
+              $("#status").text("");
+              clean = 0;
+            }
+          )
        }
     });
 

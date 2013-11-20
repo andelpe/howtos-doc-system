@@ -12,7 +12,10 @@ Stylesheet for use with Docutils for CIEMAT howtos.
 
 
 /* Background */
-body {background-color:WhiteSmoke ;}
+body {
+ background-color:WhiteSmoke ;
+ width: 25cm;
+}
 
 /* Normal literal blocks and inlines (no ..code directive) */
 pre.literal-block {
