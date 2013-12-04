@@ -295,10 +295,15 @@ class howtos(object):
             f.close()
             os.chdir(howtoDir)
             shell("hg ci -A -u howtos.py -m 'Update %s' %s" % (pageName, pageName))
-            print "Content-type: text/html\n\n"
-            print "OK"
+            if st:
+                print "Content-type: text/html\n\n"
+                print "ERROR %s when saving %s: %s" % (st, pageName, out)
+            else:
+                print "Content-type: text/html\n\n"
+                print "OK"
         else:
-            self.show(ERROR_PAGE)
+            print "Content-type: text/html\n\n"
+            print "ERROR when saving %s: can't find page" % (pageName)
 
 
     def remoteUpdate(self, pageName):
@@ -309,11 +314,16 @@ class howtos(object):
         fname = self.getPage(pageName, format='text')
         if fname:
             os.chdir(howtoDir)
-            shell("hg ci -A -u howtos.py -m 'Remote update %s' %s" % (pageName, pageName))
-            print "Content-type: text/html\n\n"
-            print "OK"
+            out, st = shell("hg ci -A -u howtos.py -m 'Remote update %s' %s" % (pageName, pageName))
+            if st:
+                print "Content-type: text/html\n\n"
+                print "ERROR %s when remote-updating %s: %s" % (st, pageName, out)
+            else:
+                print "Content-type: text/html\n\n"
+                print "OK"
         else:
-            self.show(ERROR_PAGE)
+            print "Content-type: text/html\n\n"
+            print "ERROR when remote-updating %s: can't find page" % (pageName)
 
 
 
