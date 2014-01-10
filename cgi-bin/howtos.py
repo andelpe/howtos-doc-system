@@ -19,6 +19,7 @@ editTempl = os.path.join(BASEDIR, 'edit.templ')
 
 txt2html = CGIDIR + '/simplish.py'
 rst2html = CGIDIR + '/txt2html/command.sh'
+rst2twiki = CGIDIR + '/rst2twiki'
 
 ERROR_PAGE = os.path.join(BASEDIR, 'error.html')
 
@@ -65,7 +66,7 @@ class howtos(object):
 
     def getPage(self, page, format = 'text'):
         """
-        Get a page from the Howto dir and return it as text/html.
+        Get a page from the Howto dir and return it as text/html/twiki.
         """
         if (page and (not page in self.privatePages) 
                 and (page.startswith('howto-')) ):
@@ -79,27 +80,39 @@ class howtos(object):
 #                log('fname = %s' % fname)
                 txtTime = os.stat(fname)[-2]
 
-                # If they requested txt, return it, else check html
-                if format == 'html':
-                    mydirHtml = os.path.join(howtoDir, '.html')
-                    fnameHtml = os.path.join(mydirHtml, page + '.html')
-#                    log('fnameHtml = %s' % fnameHtml)
+                # If they requested txt, return it, else check html/twiki
+                if format in ('html', 'twiki'):
 
-                    # See if the html version exists
+                    if format == 'html':
+                        mydirProc = os.path.join(howtoDir, '.html')
+                        fnameProc = os.path.join(mydirProc, page + '.html')
+    #                    log('fnameProc = %s' % fnameProc)
+
+                    if format == 'twiki':
+                        mydirProc = os.path.join(howtoDir, '.twiki')
+                        fnameProc = os.path.join(mydirProc, page + '.twiki')
+
+                    # See if the html/twiki version exists
                     # If doesn't exist or is older than txt, create it
                     try:
-                        htmlTime = os.stat(fnameHtml)[-2]
-                        if htmlTime < txtTime:
+                        procTime = os.stat(fnameProc)[-2]
+                        if procTime < txtTime:
                             raise Exception
                     except:
                         if fname.endswith('.rst'):
-                            out, st = shell(rst2html + ' %s > %s' % (fname, fnameHtml))
+                            if format == 'html':
+                                out, st = shell(rst2html + ' %s > %s' % (fname, fnameProc))
+                            if format == 'twiki':
+                                out, st = shell(rst2twiki + ' %s > %s' % (fname, fnameProc))
                         else:
-                            out, st = shell(txt2html + ' %s > %s' % (fname, fnameHtml))
+                            if format == 'html':
+                                out, st = shell(txt2html + ' %s > %s' % (fname, fnameProc))
+                            else:
+                                raise Exception
 #                        log('out, st: %s, %s' % (out, st))
 
-                    # Return the html version
-                    fname = fnameHtml
+                    # Return the html/twiki version
+                    fname = fnameProc
 
                 # Return txt/html version
                 return fname
@@ -135,6 +148,7 @@ class howtos(object):
                         text += '\n<br/><li> '
                         text += '<a href="howtos.py?page=%s&format=html">%s</a> &nbsp; (' % (page, page)
                         text += '<a href="howtos.py?page=%s">txt</a>, &nbsp; ' % page
+                        text += '<a href="howtos.py?page=%s&format=twiki">twiki</a>, &nbsp;' % page
                         text += '<a href="howtos.py?page=%s&action=edit">edit</a>)' % page
                         text += ' </li>' 
         text += '\n</ul>'
@@ -211,6 +225,10 @@ class howtos(object):
 
     def output(self, page = None, titleFilter = None, bodyFilter = None,
                format = 'text', action='show'):
+        """
+        Basic method to display the index page (with appropriate filter) or or
+        a howto page in the specified format, or even the edition page. 
+        """
 
         if (not page) or (page == 'index.html'):
             self.show(contents=self.produceIndex(titleFilter, bodyFilter))
@@ -225,8 +243,7 @@ class howtos(object):
                 self.edit(htmlPage, page) 
             else:
                 mytype="text/plain"
-                if htmlPage.endswith('.html'): 
-                    mytype="text/html"
+                if htmlPage.endswith('.html'):  mytype="text/html"
                 self.show(htmlPage, contentsType=mytype)
 
 
