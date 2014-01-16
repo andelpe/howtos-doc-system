@@ -311,7 +311,7 @@ class howtos(object):
             f.write(contents)
             f.close()
             os.chdir(howtoDir)
-            shell("hg ci -A -u howtos.py -m 'Update %s' %s" % (pageName, pageName))
+            out, st = shell("hg ci -A -u howtos.py -m 'Update %s' %s" % (pageName, pageName))
             if st:
                 print "Content-type: text/html\n\n"
                 print "ERROR %s when saving %s: %s" % (st, pageName, out)
