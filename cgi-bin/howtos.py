@@ -14,6 +14,7 @@ import cgi
 BASEDIR = '/var/www/html/howtos'
 CGIDIR = '/var/www/cgi-bin/howtos'
 howtoDir = os.path.join(BASEDIR, 'data')
+newDir = os.path.join(BASEDIR, 'new')
 privateHowtos = os.path.join(howtoDir, '.private')
 editTempl = os.path.join(BASEDIR, 'edit.templ')
 
@@ -22,6 +23,18 @@ rst2html = CGIDIR + '/txt2html/command.sh'
 rst2twiki = CGIDIR + '/rst2twiki'
 
 ERROR_PAGE = os.path.join(BASEDIR, 'error.html')
+EXISTING_PAGE = os.path.join(BASEDIR, 'existing.html')
+
+BASE_CONTENTS = """%(title)s
+%(sub)s
+
+.. contents:: Table of Contents
+.. sectnum::
+
+Intro
+=====
+"""
+
 
 ### FUNCTIONS ####
 def shell(command):
@@ -64,7 +77,7 @@ class howtos(object):
         self.logf.write('%s %s \n' % (time.strftime('%Y-%m-%d %H:%M:%S'), msg))
 
 
-    def getPage(self, page, format = 'text'):
+    def getPage(self, page, format='text', newAlso=False):
         """
         Get a page from the Howto dir and return it as text/html/twiki.
         """
@@ -118,7 +131,16 @@ class howtos(object):
                 return fname
 
             except:
-                pass
+                # The page is not in the 'data' dir, but let's check if it was just added
+                # In this case, only text version can be returned (but in the 'data' dir)
+                if newAlso and (format == 'text'):  
+                    try:
+                        fname = os.path.join(newDir, page)
+                        txtTime = os.stat(fname)[-2]
+                        os.remove(fname)
+                        return os.path.join(howtoDir, page)
+                    except:
+                        pass
                 
         # If not found, return None (it means: Error)
         return None
@@ -226,7 +248,7 @@ class howtos(object):
     def output(self, page = None, titleFilter = None, bodyFilter = None,
                format = 'text', action='show'):
         """
-        Basic method to display the index page (with appropriate filter) or or
+        Basic method to display the index page (with appropriate filter) or
         a howto page in the specified format, or even the edition page. 
         """
 
@@ -260,15 +282,18 @@ class howtos(object):
         print contents
 
 
-    def edit(self, fname, title=''):
+    def edit(self, fname, title='', contents=''):
         """
         Shows an editor page for the specified file name.
         """
         self.log('edit %s, %s' % (fname, title))
         print "Content-type: text/html\n\n"
-        f = open(fname)
-        contents = f.read()
-        f.close()
+        if not contents:
+            f = open(fname)
+            contents = f.read()
+            f.close()
+#            except IOError as e:
+#               if e.errno != 2: raise
 
         print self.editTempl % {'contents': contents, 'title': title}
 
@@ -277,26 +302,19 @@ class howtos(object):
         """
         Add new howtos page and to mercurial repo.
         """
-        os.chdir(howtoDir)
-        shell("touch %s" % pageName)
         fname = self.getPage(pageName, format='text')
+        # If the page exists already, abort
         if fname:
-            self.edit(fname, pageName)
-
-
-#    def add(self, pageName, contents):
-#        """
-#        Add new howtos page and to mercurial repo.
-#        """
-#        fname = os.path.join(howtoDir, pageName)
-#        f = open(fname, 'w')
-#        f.write(contents)
-#        f.close()
-#        os.chdir(howtoDir)
-#        shell("hg add %s" % pageName)
-#        shell("hg ci -u howtos.py -m 'Adding %s' %s" % (pageName, pageName))
-#        print "Content-type: text/html\n\n"
-#        print "OK"
+            self.show(EXISTING_PAGE)
+            return
+        os.chdir(newDir)
+        title = pageName.split('howto-')[-1].split('.rst')[0]
+        sub = '*' * len(title)
+        basecontents = BASE_CONTENTS % ({'title': title, 'sub': sub})
+#        shell('echo "%s" > %s' % (basecontents, pageName))
+        shell("echo '' > %s" % pageName)
+        fname = os.path.join(howtoDir, pageName)
+        self.edit(fname, pageName, contents=basecontents)
 
 
     def save(self, pageName, contents):
@@ -305,7 +323,7 @@ class howtos(object):
         and commit into mercurial repo.
         """
         self.log('save %s' % pageName)
-        fname = self.getPage(pageName, format='text')
+        fname = self.getPage(pageName, format='text', newAlso=True)
         if fname:
             f = open(fname, 'w')
             f.write(contents)
@@ -359,7 +377,7 @@ howtoName = args.getvalue('howtoName')
 # Run the main method that returns the html result
 howto = howtos()
 if addHowto:
-    howto.addHowto('howto-' + howtoName)
+    howto.addHowto('howto-' + howtoName + '.rst')
 elif action == 'save':
     contents = args.getvalue('contents')
     howto.save(page, contents)
