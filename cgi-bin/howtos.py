@@ -114,7 +114,7 @@ class howtos(object):
                     except:
                         if fname.endswith('.rst'):
                             if format == 'html':
-                                out, st = shell(rst2html + ' %s > %s' % (fname, fnameProc))
+                                out, st = shell(rst2html + ' %s %s > %s' % (fname, page, fnameProc))
                             if format == 'twiki':
                                 out, st = shell(rst2twiki + ' %s > %s' % (fname, fnameProc))
                         else:
@@ -377,6 +377,7 @@ howtoName = args.getvalue('howtoName')
 # Run the main method that returns the html result
 howto = howtos()
 if addHowto:
+    if not howtoName: howto.output(None)
     howto.addHowto('howto-' + howtoName + '.rst')
 elif action == 'save':
     contents = args.getvalue('contents')

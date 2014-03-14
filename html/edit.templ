@@ -66,9 +66,9 @@ textarea {
        )
     });
 
-    // Define function of the cancel button (just go to index)
+    // Define function of the cancel button: go to view this page
     $("#cancelButton").click(function(){
-        location.href="/cgi-bin/howtos/howtos.py";
+        location.href="/cgi-bin/howtos/howtos.py?page=%(title)s&format=html";
     });
 
     // Define function of the save button (send title and contents to save form)
