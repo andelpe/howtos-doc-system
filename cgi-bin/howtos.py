@@ -341,25 +341,20 @@ class howtos(object):
             print "ERROR when saving %s: can't find page" % (pageName)
 
 
-    def remoteUpdate(self, pageName):
+    def remoteUpdate(self, pageName, msg="Update"):
         """
         Commit update page into mercurial repo.
         """
         self.log('remoteUpdate %s' % pageName)
-        fname = self.getPage(pageName, format='text')
-        if fname:
-            os.chdir(howtoDir)
-            out, st = shell("hg ci -A -u howtos.py -m 'Remote update %s' %s" % (pageName, pageName))
-            if st:
-                print "Content-type: text/html\n\n"
-                print "ERROR %s when remote-updating %s: %s" % (st, pageName, out)
-            else:
-                print "Content-type: text/html\n\n"
-                print "OK"
+
+        os.chdir(howtoDir)
+        out, st = shell("hg ci -A -u howtos.py -m 'Remote - %s' %s" % (msg, pageName))
+        if st:
+            print "Content-type: text/html\n\n"
+            print "ERROR %s when remote-updating %s: %s" % (st, pageName, out)
         else:
             print "Content-type: text/html\n\n"
-            print "ERROR when remote-updating %s: can't find page" % (pageName)
-
+            print "OK"
 
 
 ### MAIN ### 
@@ -367,11 +362,12 @@ class howtos(object):
 # Get cgi values
 args = cgi.FieldStorage()
 page = args.getvalue('page')
+msg  = args.getvalue('msg')
 format = args.getvalue('format')
-title = args.getvalue('titleFilter')
-body = args.getvalue('bodyFilter')
+title  = args.getvalue('titleFilter')
+body   = args.getvalue('bodyFilter')
 action = args.getvalue('action')
-addHowto = args.getvalue('addHowto')
+addHowto  = args.getvalue('addHowto')
 howtoName = args.getvalue('howtoName')
 
 # Run the main method that returns the html result
@@ -386,6 +382,6 @@ elif action == 'add':
     contents = args.getvalue('contents')
     howto.add(page, contents)
 elif action == 'remoteUpdate':
-    howto.remoteUpdate(page)
+    howto.remoteUpdate(page, msg)
 else:
     howto.output(page, title, body, format, action)
