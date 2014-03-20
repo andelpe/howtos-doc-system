@@ -162,18 +162,24 @@ class howtos(object):
         """
         Return the list of files in the Howto dir
         """
-        text = '<ul>'
+        text = '<table>'
+        cont = 0
         for page in sorted(os.listdir(howtoDir)):
             if (not page in self.privatePages) and (page.startswith('howto-')):
                 if (not titleFilter) or (re.search("howto-.*"+titleFilter, page)):
                     if self.checkBodyFilter(bodyFilter, page):
-                        text += '\n<br/><li> '
-                        text += '<a href="howtos.py?page=%s&format=html">%s</a> &nbsp; (' % (page, page)
-                        text += '<a href="howtos.py?page=%s">txt</a>, &nbsp; ' % page
-                        text += '<a href="howtos.py?page=%s&format=twiki">twiki</a>, &nbsp;' % page
-                        text += '<a href="howtos.py?page=%s&action=edit">edit</a>)' % page
-                        text += ' </li>' 
-        text += '\n</ul>'
+                        page = page.split('howto-')[1]
+                        if (cont % 4) == 0: text += '\n<tr>'
+                        text += '\n<td>'
+                        text += '<a href="howtos.py?page=howto-%s&format=html">%s</a>' % (page, page)
+                        text += '&nbsp;&nbsp;&nbsp;<br/>'
+                        text += '<a class="smLink" href="howtos.py?page=%s">txt</a>, &nbsp; ' % page
+                        text += '<a class="smLink" href="howtos.py?page=%s&format=twiki">twiki</a>, &nbsp;' % page
+                        text += '<a class="smLink" href="howtos.py?page=%s&action=edit">edit</a>' % page
+                        text += '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;</td>'
+                        if (cont % 4) == 3: text += '\n</tr>' 
+                        cont += 1
+        text += '\n</table>'
 
         return text
 
@@ -187,56 +193,74 @@ class howtos(object):
 <html>
 <head>
  <style type="text/css">
+ body {
+  background-color: WhiteSmoke ;
+  font-family: Arial, sans-serif;
+  font-size: 110%%;
+  margin-left: 100px;
+  margin-right: 100px;
+ }
  .filter{
- background-color: LightGreen;
+  background-color: LightGreen;
  }
  .add{
  background-color: Orange;
+ }
+ .smLink{
+  font-size: 65%%;
+  color: black;
+ }
+ form{
+  font-family: courier;
+ }
+ h1.title {
+   text-align: center;
+   background-color: #444499;
+   color: white;
+   font-size: 200%%;
  }
  </style>
 </head>
 <body>
 
-<br/><br/>
-<center><h1>HowTo's&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</h1></center>
-<br/><br/>
+<br/>
+<h1 class="title">HowTo's&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</h1>
+<br/> <br/>
 
+<center>
 <table>
-<tr>
-<td width="25%%"></td>
 
-<td width="40%%">
+<tr>
+<td width="50%%">
 <form action="howtos.py" method="get">
-  &nbsp;&nbsp;&nbsp; Title filter: &nbsp;&nbsp; <input type="text" class="filter" name="titleFilter" />  
-  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  &nbsp;&nbsp; Title filter: <input type="text" class="filter" name="titleFilter" />  
+  &nbsp;
   <input type="submit" name="filter" class="filter" value="Apply filter" />
   <br/>
   Contents filter: <input type="text" class="filter" name="bodyFilter" />  
 </form> 
 </td>
 
-<td width="5%%"></td>
+<td width="10%%"></td>
 
-<td width="20%%">
+<td width="40%%" valign="top">
 <form action="howtos.py" method="get">
-  <center>
   <input type="submit" name="addHowto" class="add" value="Add Howto:" />
-  <br/><br/>
   &nbsp;&nbsp;
-  howto-<input type="text" class="add" name="howtoName" />
-  </center>
+  <input type="text" class="add" name="howtoName" />
 </form>
 </td>
-<td width="10%%"></td>
 </tr>
 
 <tr>
-<td></td>
-<td>
+<td colspan="3">
+<hr>
+<br/>
 %s
 </td>
 </tr>
 </table>
+</center>
 
 </body>
 </html>
