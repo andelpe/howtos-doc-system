@@ -169,13 +169,14 @@ class howtos(object):
                 if (not titleFilter) or (re.search("howto-.*"+titleFilter, page)):
                     if self.checkBodyFilter(bodyFilter, page):
                         page = page.split('howto-')[1]
+                        mylink = 'href="howtos.py?page=howto-%s' % page
                         if (cont % 4) == 0: text += '\n<tr>'
                         text += '\n<td>'
-                        text += '<a href="howtos.py?page=howto-%s&format=html">%s</a>' % (page, page)
+                        text += '<a %s&format=html">%s</a>' % (mylink, page.split('.rst')[0])
                         text += '&nbsp;&nbsp;&nbsp;<br/>'
-                        text += '<a class="smLink" href="howtos.py?page=%s">txt</a>, &nbsp; ' % page
-                        text += '<a class="smLink" href="howtos.py?page=%s&format=twiki">twiki</a>, &nbsp;' % page
-                        text += '<a class="smLink" href="howtos.py?page=%s&action=edit">edit</a>' % page
+                        text += '<a class="smLink" %s">txt</a>, &nbsp; ' % mylink
+                        text += '<a class="smLink" %s&format=twiki">twiki</a>, &nbsp;' % mylink
+                        text += '<a class="smLink" %s&action=edit">edit</a>' % mylink
                         text += '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;</td>'
                         if (cont % 4) == 3: text += '\n</tr>' 
                         cont += 1
@@ -210,8 +211,8 @@ class howtos(object):
   font-size: 65%%;
   color: black;
  }
- form{
-  font-family: courier;
+ form, input{
+  font-family: consolas;
  }
  h1.title {
    text-align: center;
@@ -233,7 +234,8 @@ class howtos(object):
 <tr>
 <td width="50%%">
 <form action="howtos.py" method="get">
-  &nbsp;&nbsp; Title filter: <input type="text" class="filter" name="titleFilter" />  
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+  Title filter: <input type="text" class="filter" name="titleFilter" autofocus="autofocus"/>  
   &nbsp;
   <input type="submit" name="filter" class="filter" value="Apply filter" />
   <br/>
@@ -283,7 +285,9 @@ class howtos(object):
             if action == 'edit': format = 'text'
             htmlPage = self.getPage(page, format)
 
-            if not htmlPage: htmlPage = ERROR_PAGE
+            if not htmlPage: 
+                self.show(ERROR_PAGE, contentsType="text/html")
+                return 5
 
             if action == 'edit':
                 self.edit(htmlPage, page) 
