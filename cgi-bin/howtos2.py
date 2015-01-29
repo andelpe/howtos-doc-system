@@ -19,6 +19,7 @@ newDir = os.path.join(BASEDIR, 'new')
 privateHowtos = os.path.join(howtoDir, '.private')
 showTempl = os.path.join(BASEDIR, 'show.templ')
 editTempl = os.path.join(BASEDIR, 'edit.templ')
+iniTempl  = os.path.join(BASEDIR, 'ini.templ')
 
 txt2html = CGIDIR + '/simplish.py'
 rst2html = CGIDIR + '/txt2html/command2.sh'
@@ -52,6 +53,7 @@ def shell(command):
     res = [res[0], p.returncode]
     return res
 
+
 ### CLASSES ###
 class howtos(object):
 
@@ -64,6 +66,9 @@ class howtos(object):
         lines = f.readlines()
         f.close()
         self.privatePages = [x.strip() for x in lines]
+
+# TODO: pre-load things is not very effective is the script is called anew each time
+#       We are actually reading files we are often not using...
 
         # Pre-load show (html) template
         f = open(showTempl)
@@ -167,7 +172,11 @@ class howtos(object):
         f = open(fname)
         text = f.read()
         f.close()
-        return re.search(filter, text)
+
+        for elem in filter:
+            if elem and (not re.search(elem, text)): return False
+
+        return True
 
 
     def howtoList(self, titleFilter, kwordFilter, bodyFilter):
@@ -198,104 +207,62 @@ class howtos(object):
         return text
 
 
-    def produceIndex(self, titleFilter=None, kwordFilter=None, bodyFilter=None):
+    def produceIndex(self, titleFilter=[""], kwordFilter=[""], bodyFilter=[""]):
         """
         Produce an index page to look for documents.
         """
 
-        text = """
-<html>
-<head>
- <style type="text/css">
- body {
-  background-color: WhiteSmoke ;
-  font-family: Arial, sans-serif;
-  font-size: 110%%;
-  margin-left: 100px;
-  margin-right: 100px;
- }
- .filter{
-  background-color: LightGreen;
- }
- .add{
- background-color: Orange;
- }
- .smLink{
-  font-size: 65%%;
-  color: black;
- }
- form, input{
-  font-family: consolas;
- }
- h1.title {
-   text-align: center;
-   background-color: #444499;
-   color: white;
-   font-size: 200%%;
- }
- </style>
-</head>
-<body>
+        baseTitle = """&nbsp; &nbsp; 
+Title filter: <input type="text" class="filter" name="titleFilter" value="%s" autofocus="autofocus"/>"""
+        baseKword = """&nbsp; Keyword filter: <input type="text" class="filter" name="kwordFilter" value="%s" />"""
+        baseBody = """&nbsp;Contents filter: <input type="text" class="filter" name="bodyFilter" value="%s" />""" 
+        
+        f = open(iniTempl)
+        text = f.read()
+        f.close()
 
-<br/>
-<h1 class="title">HowTo's&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</h1>
-<br/> <br/>
+        titleText = """<input type="button" value="+" onclick="addTitleFilter()" />"""
+        titleText += "<br/>\n&nbsp; &nbsp; ".join([baseTitle % elem  for elem in titleFilter]) 
 
-<center>
-<table>
+        kwordText = """<input type="button" value="+" onclick="addKwordFilter()" />"""
+        kwordText += "<br/>\n&nbsp; &nbsp; ".join([baseKword % elem  for elem in kwordFilter]) 
 
-<tr>
-<td width="50%%">
-<form action="howtos2.py" method="get">
-  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
-  Title filter: <input type="text" class="filter" name="titleFilter" autofocus="autofocus"/>  
-  <br/>
-  Keyword filter: <input type="text" class="filter" name="kwordFilter" />  
-  &nbsp;
-  <input type="submit" name="filter" class="filter" value="Apply filter" />
-  <br/>
-  Contents filter: <input type="text" class="filter" name="bodyFilter" />  
-</form> 
-</td>
+  
+        bodyText = """<input type="button" value="+" onclick="addBodyFilter()" />"""
+        bodyText += "<br/>\n&nbsp; &nbsp; ".join([baseBody % elem  for elem in bodyFilter]) 
 
-<td width="10%%"></td>
+        map = {
+            'titleFilter': titleText,
+            'kwordFilter': kwordText,
+            'bodyFilter':  bodyText,
+            'list': self.howtoList(titleFilter, kwordFilter, bodyFilter),
+        }
 
-<td width="40%%" valign="top">
-<form action="howtos2.py" method="get">
-  <input type="submit" name="addHowto" class="add" value="Add Howto:" />
-  &nbsp;&nbsp;
-  <input type="text" class="add" name="howtoName" />
-</form>
-</td>
-</tr>
-
-<tr>
-<td colspan="3">
-<hr>
-<br/>
-%s
-</td>
-</tr>
-</table>
-</center>
-
-</body>
-</html>
-        """ % (self.howtoList(titleFilter, kwordFilter, bodyFilter))
-
-        return text
+        return text % map
 
 
-    def output(self, page=None, titleFilter=None, kwordFilter=None, bodyFilter=None,
+    def output(self, page=None, titleFilter=[""], kwordFilter=[""], bodyFilter=[""],
                format='text', action='show'):
         """
         Basic method to display the index page (with appropriate filter) or
         a howto page in the specified format, or even the edition page. 
         """
 
+        # Sanitize filters (at least one filter of each, but by default containing nothing)
+        if not titleFilter:  titleFilter = [""]
+        elif type(titleFilter) != list:  titleFilter = [titleFilter]
+
+        if not kwordFilter:  kwordFilter = [""]
+        elif type(kwordFilter) != list:  kwordFilter = [kwordFilter]
+
+        if not bodyFilter:  bodyFilter = [""]
+        elif type(bodyFilter)  != list:   bodyFilter = [bodyFilter]
+
+        # Show index
         if (not page) or (page == 'index.html'):
             self.show(contents=self.produceIndex(titleFilter, kwordFilter, bodyFilter))
 
+        # Show page
         else:
             if action == 'edit': format = 'text'
             htmlPage = self.getPage(page, format)
@@ -344,8 +311,6 @@ class howtos(object):
         # Keywords
         params['kwords'] = self.db.nameFilter(title)[0]['kwords']
         params['kwords'] = '\n'.join(['<li>%s</li>' % x for x in params['kwords']])
-#        params['kwords'] = [title]
-#        for row in self.db.nameFilter(title): params['kwords'] += row['kwords']
 
         # TODO: The change time should be just one more of a list of metadata 
         #       attributes, listed in the mongodb as well
