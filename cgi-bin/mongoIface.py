@@ -1,7 +1,7 @@
 import warnings
 warnings.simplefilter('ignore', DeprecationWarning)
 import sys, os, time
-import json
+import json, bson
 import pickle
 from optparse import OptionParser
 import pymongo as m
@@ -29,9 +29,12 @@ class mongoIface:
         self.verb = verb
 
 
-    def filter(self, name, kword):
+    def filter(self, name, kword, op='$and'):
         """
-        Returns the records matching both the passed name and kword patterns. 
+        Returns the records matching both the passed name and/or kword patterns. 
+
+        The default operation is to 'and' the filters, but you can 'or' them, passing
+        'op=$or' (maybe other operations are possible, but do not rely on it).
         """
         andedList = []
 
@@ -47,7 +50,7 @@ class mongoIface:
                     if elem:  andedList.append({'kwords': {'$elemMatch': {'$regex': elem}}})
             else:  andedList.append({'kwords': {'$elemMatch': {'$regex': kword}}})
 
-        if andedList:  return self.list.find({'$and': andedList})
+        if andedList:  return self.list.find({op: andedList})
         else:          return self.list.find()
 
 #        f = open('/tmp/debug', 'w')
@@ -69,6 +72,14 @@ class mongoIface:
         return self.list.find({'kwords': {'$elemMatch': {'$regex': pattern}}})
 
 
+    def update(self, id, changes, upsert=False):
+        """
+        Updates record with specified 'id' by applying specified 'changes' (dict with
+        modified fields).
+        """
+        self.list.update({'_id': id}, {"$set": changes}, upsert=upsert)
+
+
     def parseDir(self, dir):
         """
         Parse howto files in <dir>/data and generate the collection of howtos with 'name',
@@ -85,9 +96,15 @@ class mongoIface:
             if self.verb:  print 'Processing file %s' % fname
 
             tokens = fname.split('.rst')[0].split('-')[1:]
-            hMap['name'] = fname
+#            hMap['name'] = fname
+            hMap['name'] = '-'.join(tokens)
             hMap['fname'] = fname
             hMap['kwords'] = tokens
+            hMap['rstTime'] = time.time()
+
+            f = open(hDir+'/'+fname)
+            hMap['rst'] = f.read().decode("latin-1").encode("utf-8")
+            f.close()
 
             all.append(hMap)
 

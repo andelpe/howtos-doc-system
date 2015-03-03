@@ -9,6 +9,8 @@ import re
 import subprocess as sub
 import cgi
 from mongoIface import mongoIface
+import bson
+from utils import shell, commandError
 
 
 ### CONSTANTS ####
@@ -40,18 +42,18 @@ Intro
 
 
 ### FUNCTIONS ####
-def shell(command):
-    """
-    Runs the specified command (string) in a shell and returns the output 
-    of the command (stdout and stderr together with 2>&1) and its exit code
-    in a list like:
-       [output, exitcode]
-    """
-    p = sub.Popen(command + ' 2>&1', shell = True, stdout=sub.PIPE)
-    p.wait()
-    res = p.communicate()
-    res = [res[0], p.returncode]
-    return res
+#def shell(command):
+#    """
+#    Runs the specified command (string) in a shell and returns the output 
+#    of the command (stdout and stderr together with 2>&1) and its exit code
+#    in a list like:
+#       [output, exitcode]
+#    """
+#    p = sub.Popen(command + ' 2>&1', shell = True, stdout=sub.PIPE)
+#    p.wait()
+#    res = p.communicate()
+#    res = [res[0], p.returncode]
+#    return res
 
 
 ### CLASSES ###
@@ -94,73 +96,44 @@ class howtos(object):
         self.logf.write('%s %s \n' % (time.strftime('%Y-%m-%d %H:%M:%S'), msg))
 
 
-    def getPage(self, page, format='text', newAlso=False):
+    def getPage(self, title, format='text', newAlso=False):
         """
-        Get a page from the Howto dir and return it as text/html/twiki.
+        Get a Howto and return it as text/html/twiki.
         """
-        if (page and (not page in self.privatePages) 
-                and (page.startswith('howto-')) ):
+        try:
+            # TODO: private pages will have a private tag... implement that
 
-            mydir = howtoDir
+            # TODO: Maybe we want this filter to be exact (not regex)
+            mypage = self.db.nameFilter(title)
+#            if not mypage: return None
 
-            # First see if the text version exists
-            # If not, just return nothing (html cannot exist)
-            try:
-                fname = os.path.join(mydir, page)
-#                log('fname = %s' % fname)
-                txtTime = os.stat(fname)[-2]
+            mypage = mypage[0]
+#            self.log("MYPAGE: %s" % mypage)
 
-                # If they requested txt, return it, else check html/twiki
-                if format in ('html', 'twiki'):
+            if format == 'html':
 
-                    if format == 'html':
-                        mydirProc = os.path.join(howtoDir, '.html')
-                        fnameProc = os.path.join(mydirProc, page + '.html')
-    #                    log('fnameProc = %s' % fnameProc)
+                # Check if HTML field is there and is up-to-date. If not, produce it and store it
+                if ('html' not in mypage) or ('htmlTime' not in mypage) or (mypage['htmlTime'] < mypage['rstTime']):
+                    out = shell(rst2html + ' -  %s' % (title), input=mypage['rst'])
+                    mypage['html'] = out
+                    self.db.update(mypage['_id'], {'html': out, 'htmlTime': time.time()})
 
-                    if format == 'twiki':
-                        mydirProc = os.path.join(howtoDir, '.twiki')
-                        fnameProc = os.path.join(mydirProc, page + '.twiki')
 
-                    # See if the html/twiki version exists
-                    # If doesn't exist or is older than txt, create it
-                    try:
-                        procTime = os.stat(fnameProc)[-2]
-                        if procTime < txtTime:
-                            raise Exception
-                    except:
-                        if fname.endswith('.rst'):
-                            if format == 'html':
-                                out, st = shell(rst2html + ' %s %s > %s' % (fname, page, fnameProc))
-                            if format == 'twiki':
-                                out, st = shell(rst2twiki + ' %s > %s' % (fname, fnameProc))
-                        else:
-                            if format == 'html':
-                                out, st = shell(txt2html + ' %s > %s' % (fname, fnameProc))
-                            else:
-                                raise Exception
-#                        log('out, st: %s, %s' % (out, st))
+            if format == 'twiki':
 
-                    # Return the html/twiki version
-                    fname = fnameProc
+                # Check if Twiki field is there and is up-to-date. If not, produce it and store it
+                if ('twiki' not in mypage) or ('twikiTime' not in mypage) or (mypage['twikiTime'] < mypage['rstTime']):
+                    out = shell(rst2twiki + ' - %s' % (title), input=mypage['rst'])
+                    mypage['twiki'] = out
+                    self.db.update(mypage['_id'], {'twiki': out, 'twikiTime': time.time()})
 
-                # Return txt/html version
-                return fname
+            # All OK
+            return mypage
 
-            except:
-                # The page is not in the 'data' dir, but let's check if it was just added
-                # In this case, only text version can be returned (but in the 'data' dir)
-                if newAlso and (format == 'text'):  
-                    try:
-                        fname = os.path.join(newDir, page)
-                        txtTime = os.stat(fname)[-2]
-                        os.remove(fname)
-                        return os.path.join(howtoDir, page)
-                    except:
-                        pass
-                
-        # If not found, return None (it means: Error)
-        return None
+        except Exception, inst:
+            # TODO: Improve this
+            self.log("EXCEPTION: %s" % inst)
+            return None
 
 
     def checkBodyFilter(self, filter, page):
@@ -187,14 +160,15 @@ class howtos(object):
         cont = 0
         rows = self.db.filter(titleFilter, kwordFilter)
         for row in rows:
-            page = row['fname']
+            page = row['name']
             if (not page in self.privatePages):
-                if self.checkBodyFilter(bodyFilter, page):
-                    page = page.split('howto-')[1]
-                    mylink = 'href="howtos2.py?page=howto-%s' % page
+#                if self.checkBodyFilter(bodyFilter, page):
+#                    page = page.split('howto-')[1]
+                    mylink = 'href="howtos2.py?page=%s' % page
                     if (cont % 4) == 0: text += '\n<tr>'
                     text += '\n<td>'
-                    text += '<a %s&format=html">%s</a>' % (mylink, page.split('.rst')[0])
+#                    text += '<a %s&format=html">%s</a>' % (mylink, page.split('.rst')[0])
+                    text += '<a %s&format=html">%s</a>' % (mylink, page)
                     text += '&nbsp;&nbsp;&nbsp;<br/>'
                     text += '<a class="smLink" %s">txt</a>, &nbsp; ' % mylink
                     text += '<a class="smLink" %s&format=twiki">twiki</a>, &nbsp;' % mylink
@@ -264,22 +238,24 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
 
         # Show page
         else:
-            if action == 'edit': format = 'text'
-            htmlPage = self.getPage(page, format)
 
-            if not htmlPage: 
-                self.show(ERROR_PAGE, contentsType="text/html")
+            
+            if action == 'edit': format = 'text'
+            mypage = self.getPage(page, format)
+
+            if not mypage: 
+                self.show(fname=ERROR_PAGE, contentsType="text/html")
                 return 5
 
             if action == 'edit':
-                self.edit(htmlPage, page) 
+                self.edit(mypage, page) 
             else:
                 mytype="text/plain"
-                if htmlPage.endswith('.html'):  mytype="text/html"
-                self.show(htmlPage, contentsType=mytype, title=page)
+                if format == 'html':  mytype="text/html"
+                self.show(mypage, contentsType=mytype, title=page)
 
 
-    def show(self, fname=None, contents=None, contentsType="text/html", title=""):
+    def show(self, page=None, contents=None, fname=None, contentsType="text/html", title=""):
         """
         Show contents of the specified file on stdout. Depending on the type of contents,
         the appropriate header is shown before.
@@ -289,64 +265,67 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
         text... but I don't like that, if people wants to just download the raw text).
         """
         print "Content-type: %s\n" % contentsType
-        if fname:
-            if contentsType == "text/html":
-                contents = self.showWithMeta(fname, title)
-            else:
+        if not contents:
+            if fname:
                 f = open(fname)
                 contents = f.read()
                 f.close()
+            elif page:
+                if contentsType == "text/html":
+                    contents = self.showWithMeta(page)
+                else:
+                    contents = page['rst']
 
         # Return the result
         print contents
 
 
-    def showWithMeta(self, fname, title):
+    def showWithMeta(self, page):
         """
         Insert the top links and the side metadata (keywords, date).
         """
         params = {}
-        params['title'] = title
+        params['title'] = page['name']
 
         # Keywords
-        params['kwords'] = self.db.nameFilter(title)[0]['kwords']
+        params['kwords'] = page['kwords']
         params['kwords'] = '\n'.join(['<li>%s</li>' % x for x in params['kwords']])
 
-        # TODO: The change time should be just one more of a list of metadata 
-        #       attributes, listed in the mongodb as well
-        #       We may also want to show them as a table...
-        # Last change
-        seconds = os.stat(fname).st_mtime
-        params['changeTime'] = time.strftime('%Y-%m-%d %H:%M', time.gmtime(seconds))
+        # Metadata
+        params['changeTime'] = time.strftime('%Y-%m-%d %H:%M', time.gmtime(page['rstTime']))
+        params['htmlTime'] = time.strftime('%Y-%m-%d %H:%M', time.gmtime(page['htmlTime']))
+        params['rstSize'] = len(page['rst'])
+        params['htmlSize'] = len(page['html'])
 
-        # Scan contents
-        f = open(fname)
+        # Contents
+        lines = page['html'].split('\n')
 
         # Up to document line
         part = []
-        for line in f:
+        while lines:
+            line = lines.pop(0)
             if not line.startswith('<div class="document" id='): 
                 part.append(line)
             else:
                 params['docline'] = line
                 break
-        params['pre'] = ''.join(part)
+        params['pre'] = '\n'.join(part)
 
         # From document line to the end
         part = []
-        for line in f:
+        while lines:
+            line = lines.pop(0)
             if not line.startswith('</body>'): 
                 part.append(line)
             else:
                 break
-        params['most'] = ''.join(part)
-        
-        f.close()
+        params['most'] = '\n'.join(part)
 
         # Output results
         return self.showTempl % params
 
 
+    # TODO: make this work with the new system ==> store in mongo
     def edit(self, fname, title='', contents=''):
         """
         Shows an editor page for the specified file name.
@@ -394,13 +373,13 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
             f.write(contents)
             f.close()
             os.chdir(howtoDir)
-            out, st = shell("hg ci -A -u howtos.py -m 'Update %s' %s" % (pageName, pageName))
-            if st:
-                print "Content-type: text/html\n\n"
-                print "ERROR %s when saving %s: %s" % (st, pageName, out)
-            else:
+            try:
+                out = shell("hg ci -A -u howtos.py -m 'Update %s' %s" % (pageName, pageName))
                 print "Content-type: text/html\n\n"
                 print "OK"
+            except commandError, ex:
+                print "Content-type: text/html\n\n"
+                print "ERROR when saving %s: %s" % (pageName, ex)
         else:
             print "Content-type: text/html\n\n"
             print "ERROR when saving %s: can't find page" % (pageName)
@@ -413,13 +392,13 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
         self.log('remoteUpdate %s' % pageName)
 
         os.chdir(howtoDir)
-        out, st = shell("hg ci -A -u howtos.py -m 'Remote - %s' %s" % (msg, pageName))
-        if st:
-            print "Content-type: text/html\n\n"
-            print "ERROR %s when remote-updating %s: %s" % (st, pageName, out)
-        else:
+        try:
+            out = shell("hg ci -A -u howtos.py -m 'Remote - %s' %s" % (msg, pageName))
             print "Content-type: text/html\n\n"
             print "OK"
+        except commandError, ex: 
+            print "Content-type: text/html\n\n"
+            print "ERROR when remote-updating %s: %s" % (pageName, ex)
 
 
 ### MAIN ### 

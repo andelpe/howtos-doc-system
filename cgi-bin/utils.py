@@ -1,7 +1,8 @@
 import subprocess as sub
-import sys, os
+import sys, os, signal
 import re
 from math import log
+import threading
 
 class SimpleConfigParser:
   def __init__(self):
@@ -145,7 +146,7 @@ def parseLine(s, skipComments = False):
 
     return tokens
 
-def err(msg):
+def err(msg=''):
     """
     Prints the specified string msg to standard error (with an added trailing newline)
     """
@@ -213,7 +214,7 @@ def shellerr(command, bg = False):
 #    return [res[0], res[2]]
 
 
-def shell(command, input=None, ignoreError=False, bg=False):
+def shell(command, input=None, ignoreError=False, bg=False, tout=None):
     """
     Runs the specified command (string) in a shell and returns the output 
     of the command (stdout and stderr together with 2>&1).
@@ -227,31 +228,50 @@ def shell(command, input=None, ignoreError=False, bg=False):
     If 'bg' is set to True, then it does not wait for process completion just 
     launches it and returns None. Ignored if 'input' is set.
     """
-    res = None
-    if input == None: 
-        fin = open(os.devnull, 'w')
-        if bg:  fout = fin
-        else:   fout = sub.PIPE
-    else:
-        fin = sub.PIPE
-        fout = sub.PIPE
 
-    p = sub.Popen(command+' 2>&1', shell=True, stdout=fout, stdin=fin)
+    def target(vars, command, input, ignoreError, bg):
 
-    if not bg:  res = p.communicate()
+        if input == None: 
+            fin = open(os.devnull, 'w')
+            if bg:  fout = fin
+            else:   fout = sub.PIPE
+        else:
+            fin = sub.PIPE
+            fout = sub.PIPE
 
-    if input or (not bg):
-        p.wait()
-        res = res[0]
-        
-        # If error, raise exception
-        if p.returncode and (not ignoreError):
-            msg = 'Error in "%s". Exit code: %s. Output: %s'
-            msg = msg % (command, p.returncode, res)
+        vars[1] = sub.Popen(command+' 2>&1', shell=True, stdout=fout, stdin=fin,
+                            preexec_fn=os.setsid)
+
+        if input:     vars[0] = vars[1].communicate(input=input)
+        elif not bg:  vars[0] = vars[1].communicate()
+
+        if input or (not bg):
+            vars[1].wait()
+            if vars[0]:  vars[0] = vars[0][0]
+            
+            # If error, return an exception
+            if vars[1].returncode and (not ignoreError):
+                msg = 'Error in "%s". Exit code: %s. Output: %s'
+                msg = msg % (command, vars[1].returncode, vars[0])
+                vars[0] = commandError(msg)
+
+
+    # Thread
+    vars = [None, None]
+    thargs = [vars, command, input, ignoreError, bg]
+    thread = threading.Thread(target=target, args=thargs)
+    thread.start()
+    thread.join(tout)
+    if not sys.version.startswith('2.4'):
+        if thread.is_alive():  
+#            vars[1].terminate()
+            os.killpg(vars[1].pid, signal.SIGTERM)
+            msg = "Command timed out"
             raise commandError(msg)
 
-    # Else, return output
-    return res
+    # Return result (or raise exception)
+    if type(vars[0]) == commandError:  raise vars[0]
+    return vars[0]
 
 
 def cmd(command):
@@ -424,3 +444,51 @@ def unindent(lines, verb = False):
     return res
      
 
+def atoi(text):
+    """
+    Returns an integer version of the specified string if it is convertible,
+    or the same string if not.
+    """
+    if text.isdigit(): return int(text)
+    else:              return text
+
+
+def ntokens(text):
+    """
+    Tokenizes the passed string and returns a list of these tokens after
+    converting to int those that represent so.
+    
+    This function can be used as the 'key' parameter of the 'sort' function
+    to correctly sort lists of elements with embedded numerical indices.
+    See: http://nedbatchelder.com/blog/200712/human_sorting.html
+
+    Example:
+      l = ['gaeds001_1', 'gaeds001_10', 'gaeds001_2']
+      l.sort(key=ntokens)
+      print l
+        ==> ['gaeds001_1', 'gaeds001_2', 'gaeds001_10']
+    """
+    return [ atoi(c) for c in re.split('(\d+)', text) ]
+
+
+def human(val, bytes=False):
+    """
+    Returns a a human-readable string representing the passed number ('val'),
+    by using K, M, G... prefixes (powers of 1000).
+
+    If 'bytes' is set as True then powers of 1024 are used instead (i.e. 'K' means 'kibi'
+    instead of 'kilo', 'M' means 'mebi' instead of 'mega', etc.
+
+    Remember that you can also print in scientific notation just with sth like:
+       print "%.2e" % val
+    """
+    factor = 1000.0
+    extra = ''
+    if bytes: 
+        factor = 1024.0
+        extra = 'i'
+
+    for suff in ['','K','M','G','T','P','E']:
+        if val < factor:
+            return "%3.2f %s%s" % (val, suff, extra)
+        val /= factor

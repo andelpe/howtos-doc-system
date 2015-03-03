@@ -16,7 +16,7 @@ html1="$html1 \n</center>\n"
 
 rst2html -t --stylesheet ${BASEDIR}/mystyle.css,${BASEDIR}/pygment.css \
    $fname | sed -e "/^<h1 class=\"title/s#^#$html1#" \
-                -e "s#Generated.*#Last update: \&nbsp;\&nbsp; $filedate. <br>\n&#" \
+                -e "s#Generated.*#Last update: \&nbsp;\&nbsp; $filedate. <br/>\n&#" \
                 -e 's#class="upperalpha simple"#type="A"#' \
                 -e 's#class="loweralpha simple"#type="a"#'
 

@@ -10,18 +10,30 @@ Stylesheet for use with Docutils for CIEMAT howtos.
 
 /* CIEMAT HowTo's customizations follow */
 
-
-/* Background */
+/* General properties */
 body {
- background-color:WhiteSmoke ;
+ background-color: WhiteSmoke ;
+ font-family: Arial, sans-serif;
  width: 25cm;
+ margin-left: 60px;
+ margin-bottom: 40px;
+}
+
+/* Italics in serif fonts */
+em, i {
+  font-family: Times New Roman, Times, serif;
 }
 
 /* Normal literal blocks and inlines (no ..code directive) */
 pre.literal-block {
-  color:Darkred;background-color:SeaShell;overflow:auto
+  color:Darkred;
+  background-color:SeaShell;
+  overflow:auto
 }
-tt.docutils{font-family:monospace;color:Darkred}
+tt.docutils{
+  font-family:monospace;
+  color:Darkred
+}
 
 /* Auto-generated tables */
 table { 
@@ -36,5 +48,44 @@ td {
  color:blue;
  text-align:center;
  border: 1px solid Gray; 
+}
+
+/* Do not underline links */
+a{ text-decoration: none; } 
+
+/* Table of contents */
+.topic-title.first{
+ font-weight: bold; 
+ font-size: 140%
+}
+
+/* Headlines */
+h1, h2, h3, h4, h5, h6 {
+  font-family: Helvetica, Arial, sans-serif;
+  padding: 2px;
+}
+a.toc-backref { color: darkblue; }
+h1.title {
+  text-align: center;
+  background-color: #444499;
+  color: white;
+  font-size: 200%;
+}
+h1 {
+  background-color: #bbbbbb;
+  font-size: 140%;
+  border: thin solid black; 
+  padding: 4px;
+  margin-top: 60px;
+}
+h2 {
+  background-color: #dddddd;
+  font-size: 120%;
+  margin-top: 30px;
+}
+
+/* Separate footer */
+hr.footer{
+ margin-top: 60px;
 }
 
