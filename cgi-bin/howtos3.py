@@ -8,9 +8,10 @@ import os, logging, time
 import re
 import subprocess as sub
 import cgi
-from mongoIface import mongoIface
+from elasticIface import ElasticIface
 import bson
 from utils import shell, commandError
+from datetime import datetime
 
 
 ### CONSTANTS ####
@@ -86,7 +87,7 @@ class howtos(object):
         self.logf = open(logfile, 'a')
         
         # Connect to mongoDB
-        self.db = mongoIface()
+        self.db = ElasticIface()
 
 
     def log(self, msg):
@@ -96,36 +97,35 @@ class howtos(object):
         self.logf.write('%s %s \n' % (time.strftime('%Y-%m-%d %H:%M:%S'), msg))
 
 
-    def getPage(self, title, format='text', newAlso=False):
+    def getPage(self, id, format='text', newAlso=False):
         """
         Get a Howto and return it as text/html/twiki.
         """
         try:
             # TODO: private pages will have a private tag... implement that
 
-            # TODO: Maybe we want this filter to be exact (not regex)
-            mypage = self.db.nameFilter(title)
-#            if not mypage: return None
-
-            mypage = mypage[0]
+            mypage = self.db.getHowto(id)
+            if not mypage: return None
 #            self.log("MYPAGE: %s" % mypage)
 
             if format == 'html':
 
                 # Check if HTML field is there and is up-to-date. If not, produce it and store it
-                if ('html' not in mypage) or ('htmlTime' not in mypage) or (mypage['htmlTime'] < mypage['rstTime']):
-                    out = shell(rst2html + ' -  %s' % (title), input=mypage['rst'])
-                    mypage['html'] = out
-                    self.db.update(mypage['_id'], {'html': out, 'htmlTime': time.time()})
+                if (not mypage.html) or (not mypage.htmlTime) or (mypage.htmlTime < mypage.rstTime):
+                    out = shell(rst2html + ' -  %s' % (mypage.name), input=mypage.rst)
+#                    mypage['html'] = out
+                    self.db.update(mypage.meta.id, {'html': out, 'htmlTime': datetime.now()})
+                    mypage = self.db.getHowto(id)
 
 
             if format == 'twiki':
 
                 # Check if Twiki field is there and is up-to-date. If not, produce it and store it
                 if ('twiki' not in mypage) or ('twikiTime' not in mypage) or (mypage['twikiTime'] < mypage['rstTime']):
-                    out = shell(rst2twiki + ' - %s' % (title), input=mypage['rst'])
+                    out = shell(rst2twiki + ' - %s' % (mypage.name), input=mypage['rst'])
                     mypage['twiki'] = out
-                    self.db.update(mypage['_id'], {'twiki': out, 'twikiTime': time.time()})
+                    self.db.update(mypage.meta.id, {'twiki': out, 'twikiTime': datetime.now()})
+                    mypage = self.db.getHowto(id)
 
             # All OK
             return mypage
@@ -136,20 +136,20 @@ class howtos(object):
             return None
 
 
-    def checkBodyFilter(self, filter, page):
-        """
-        """
-        if not filter: return True
-
-        fname = os.path.join(howtoDir, page)
-        f = open(fname)
-        text = f.read()
-        f.close()
-
-        for elem in filter:
-            if elem and (not re.search(elem, text)): return False
-
-        return True
+#    def checkBodyFilter(self, filter, page):
+#        """
+#        """
+#        if not filter: return True
+#
+#        fname = os.path.join(howtoDir, page)
+#        f = open(fname)
+#        text = f.read()
+#        f.close()
+#
+#        for elem in filter:
+#            if elem and (not re.search(elem, text)): return False
+#
+#        return True
 
 
     def howtoList(self, titleFilter, kwordFilter, bodyFilter):
@@ -158,18 +158,16 @@ class howtos(object):
         """
         text = '<table>'
         cont = 0
-        rows = self.db.filter(titleFilter, kwordFilter)
+        rows = self.db.filter(names=titleFilter, kwords=kwordFilter, contents=bodyFilter)
         for row in rows:
-            page = row['name']
-            if (not page in self.privatePages):
-                # TODO: Implement the contents filter (bodyFilter)            
-#                if self.checkBodyFilter(bodyFilter, page):
-#                    page = page.split('howto-')[1]
-                    mylink = 'href="howtos2.py?page=%s' % page
+            title = row.name
+            id = row.meta.id
+            if (not id in self.privatePages):
+                    mylink = 'href="howtos3.py?id=%s' % id
                     if (cont % 4) == 0: text += '\n<tr>'
                     text += '\n<td>'
 #                    text += '<a %s&format=html">%s</a>' % (mylink, page.split('.rst')[0])
-                    text += '<a %s&format=html">%s</a>' % (mylink, page)
+                    text += '<a %s&format=html">%s</a>' % (mylink, title)
                     text += '&nbsp;&nbsp;&nbsp;<br/>'
                     text += '<a class="smLink" %s">txt</a>, &nbsp; ' % mylink
                     text += '<a class="smLink" %s&format=twiki">twiki</a>, &nbsp;' % mylink
@@ -182,7 +180,7 @@ class howtos(object):
         return text
 
 
-    def produceIndex(self, titleFilter=[""], kwordFilter=[""], bodyFilter=[""]):
+    def produceIndex(self, titleFilter=[], kwordFilter=[], bodyFilter=[]):
         """
         Produce an index page to look for documents.
         """
@@ -192,31 +190,40 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
         baseKword = """&nbsp; Keyword filter: <input type="text" class="filter" name="kwordFilter" value="%s" />"""
         baseBody = """&nbsp;Contents filter: <input type="text" class="filter" name="bodyFilter" value="%s" />""" 
         
-        f = open(iniTempl)
-        text = f.read()
-        f.close()
+#        f = open(iniTempl)
+#        text = f.read()
+#        f.close()
+        with open(iniTempl) as f:
+            text = f.read()
 
-        titleText = """<input type="button" value="+" onclick="addTitleFilter()" />"""
-        titleText += "<br/>\n&nbsp; &nbsp; ".join([baseTitle % elem  for elem in titleFilter]) 
+        def createText(mylist, buttonText, baseText):
+            if not mylist:  mylist = [""]
+            mytext = """<input type="button" value="+" onclick="%s" />""" % buttonText
+            mytext  += "<br/>\n&nbsp; &nbsp; ".join([baseText % elem  for elem in mylist])
+            return mytext
 
-        kwordText = """<input type="button" value="+" onclick="addKwordFilter()" />"""
-        kwordText += "<br/>\n&nbsp; &nbsp; ".join([baseKword % elem  for elem in kwordFilter]) 
+#        titleText = createText(titleFilter, 'addTitleFilter()', baseTitle)
+#        kwordText = createText(kwordFilter, 'addKwordFilter()', baseKword)
+#        bodyText  = createText(bodyFilter, 'addBodyFilter()', baseBody)
 
-  
-        bodyText = """<input type="button" value="+" onclick="addBodyFilter()" />"""
-        bodyText += "<br/>\n&nbsp; &nbsp; ".join([baseBody % elem  for elem in bodyFilter]) 
+#        titleText = """<input type="button" value="+" onclick="addTitleFilter()" />"""
+#        titleText += "<br/>\n&nbsp; &nbsp; ".join([baseTitle % elem  for elem in titleFilter]) 
+#        kwordText = """<input type="button" value="+" onclick="addKwordFilter()" />"""
+#        kwordText += "<br/>\n&nbsp; &nbsp; ".join([baseKword % elem  for elem in kwordFilter]) 
+#        bodyText = """<input type="button" value="+" onclick="addBodyFilter()" />"""
+#        bodyText += "<br/>\n&nbsp; &nbsp; ".join([baseBody % elem  for elem in bodyFilter]) 
 
         map = {
-            'titleFilter': titleText,
-            'kwordFilter': kwordText,
-            'bodyFilter':  bodyText,
+            'titleFilter': createText(titleFilter, 'addTitleFilter()', baseTitle),
+            'kwordFilter': createText(kwordFilter, 'addKwordFilter()', baseKword),
+            'bodyFilter':  createText(bodyFilter, 'addBodyFilter()', baseBody),
             'list': self.howtoList(titleFilter, kwordFilter, bodyFilter),
         }
 
         return text % map
 
 
-    def output(self, page=None, titleFilter=[""], kwordFilter=[""], bodyFilter=[""],
+    def output(self, id=None, titleFilter=[], kwordFilter=[], bodyFilter=[], 
                format='text', action='show'):
         """
         Basic method to display the index page (with appropriate filter) or
@@ -224,17 +231,17 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
         """
 
         # Sanitize filters (at least one filter of each, but by default containing nothing)
-        if not titleFilter:  titleFilter = [""]
+        if not titleFilter:  titleFilter = []
         elif type(titleFilter) != list:  titleFilter = [titleFilter]
 
-        if not kwordFilter:  kwordFilter = [""]
+        if not kwordFilter:  kwordFilter = []
         elif type(kwordFilter) != list:  kwordFilter = [kwordFilter]
 
-        if not bodyFilter:  bodyFilter = [""]
+        if not bodyFilter:  bodyFilter = []
         elif type(bodyFilter)  != list:   bodyFilter = [bodyFilter]
 
         # Show index
-        if (not page) or (page == 'index.html'):
+        if (not id) or (id == 'index.html'):
             self.show(contents=self.produceIndex(titleFilter, kwordFilter, bodyFilter))
 
         # Show page
@@ -242,7 +249,7 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
 
             
             if action == 'edit': format = 'text'
-            mypage = self.getPage(page, format)
+            mypage = self.getPage(id, format)
 
             if not mypage: 
                 self.show(fname=ERROR_PAGE, contentsType="text/html")
@@ -253,7 +260,7 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
             else:
                 mytype="text/plain"
                 if format == 'html':  mytype="text/html"
-                self.show(mypage, contentsType=mytype, title=page)
+                self.show(mypage, contentsType=mytype, title=mypage.name)
 
 
     def show(self, page=None, contents=None, fname=None, contentsType="text/html", title=""):
@@ -275,7 +282,7 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
                 if contentsType == "text/html":
                     contents = self.showWithMeta(page)
                 else:
-                    contents = page['rst']
+                    contents = page.rst
 
         # Return the result
         print contents
@@ -286,17 +293,17 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
         Insert the top links and the side metadata (keywords, date).
         """
         params = {}
-        params['title'] = page['name']
+        params['title'] = page.name
 
         # Keywords
-        params['kwords'] = page['kwords']
+        params['kwords'] = page.keywords
         params['kwords'] = '\n'.join(['<li>%s</li>' % x for x in params['kwords']])
 
         # Metadata
-        params['changeTime'] = time.strftime('%Y-%m-%d %H:%M', time.gmtime(page['rstTime']))
-        params['htmlTime'] = time.strftime('%Y-%m-%d %H:%M', time.gmtime(page['htmlTime']))
-        params['rstSize'] = len(page['rst'])
-        params['htmlSize'] = len(page['html'])
+        params['changeTime'] = page.rstTime.strftime('%Y-%m-%d %H:%M')
+        params['htmlTime']  = page.htmlTime.strftime('%Y-%m-%d %H:%M')
+        params['rstSize'] = len(page.rst)
+        params['htmlSize'] = len(page.html)
 
         # Contents
         lines = page['html'].split('\n')
@@ -406,7 +413,7 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
 
 # Get cgi values
 args = cgi.FieldStorage()
-page = args.getvalue('page')
+id = args.getvalue('id')
 msg  = args.getvalue('msg')
 format = args.getvalue('format')
 title  = args.getvalue('titleFilter')
@@ -423,11 +430,11 @@ if addHowto:
     howto.addHowto('howto-' + howtoName + '.rst')
 elif action == 'save':
     contents = args.getvalue('contents')
-    howto.save(page, contents)
+    howto.save(id, contents)
 elif action == 'add':
     contents = args.getvalue('contents')
-    howto.add(page, contents)
+    howto.add(id, contents)
 elif action == 'remoteUpdate':
     howto.remoteUpdate(page, msg)
 else:
-    howto.output(page, title, kword, body, format, action)
+    howto.output(id, title, kword, body, format, action)
