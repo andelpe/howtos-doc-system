@@ -11,7 +11,8 @@ html1="<center>"
 html1="$html1 \n <a href=\"/cgi-bin/howtos/howtos.py\">Back Home</a>  \&nbsp;\&nbsp;\&nbsp;\&nbsp;\&nbsp;"
 html1="$html1 \n <a href=\"/cgi-bin/howtos/howtos.py?page=${page}\&format=txt\">txt</a> \&nbsp;\&nbsp;\&nbsp;"
 html1="$html1 \n <a href=\"/cgi-bin/howtos/howtos.py?page=${page}\&format=twiki\">twiki</a> \&nbsp;\&nbsp;\&nbsp;\&nbsp;"
-html1="$html1 \n <a href=\"/cgi-bin/howtos/howtos.py?page=${page}\&action=edit\">Edit</a>"
+html1="$html1 \n <a href=\"/cgi-bin/howtos/howtos.py?page=${page}\&format=pdf\">pdf</a> \&nbsp;\&nbsp;\&nbsp;\&nbsp; \&nbsp;\&nbsp;\&nbsp;"
+html1="$html1 \n <a href=\"/cgi-bin/howtos/howtos.py?page=${page}\&action=edit\"><font color=\"red\">Edit</font></a>"
 html1="$html1 \n</center>\n"
 
 rst2html -t --stylesheet ${BASEDIR}/mystyle.css,${BASEDIR}/pygment.css \

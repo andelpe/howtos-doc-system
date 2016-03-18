@@ -1,0 +1,14 @@
+
+\ProvidesPackage{/var/www/cgi-bin/howtos/txt2pdf/mystyle}
+
+\makeatletter
+% Definition of \ttfamily from latex.ltx
+\DeclareRobustCommand\ttfamily
+        {\not@math@alphabet\ttfamily\mathtt
+         \fontfamily\ttdefault\footnotesize\selectfont}
+\makeatother
+
+\renewcommand*{\ttdefault}{lmvtt}
+
+\usepackage[a4paper, total={15.5cm, 24cm}]{geometry}
+

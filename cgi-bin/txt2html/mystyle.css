@@ -13,10 +13,13 @@ Stylesheet for use with Docutils for CIEMAT howtos.
 /* General properties */
 body {
  background-color: WhiteSmoke ;
- font-family: Arial, sans-serif;
- width: 25cm;
+// font-family: Arial, sans-serif;
+ font-family: Times New Roman, Times, serif;
+ width: 22cm;
  margin-left: 60px;
  margin-bottom: 40px;
+ line-height: 130%;
+ font-size: 105%
 }
 
 /* Italics in serif fonts */

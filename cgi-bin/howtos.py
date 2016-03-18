@@ -21,6 +21,7 @@ editTempl = os.path.join(BASEDIR, 'edit.templ')
 txt2html = CGIDIR + '/simplish.py'
 rst2html = CGIDIR + '/txt2html/command.sh'
 rst2twiki = CGIDIR + '/rst2twiki'
+rst2pdf = CGIDIR + '/txt2pdf/command.sh'
 
 ERROR_PAGE = os.path.join(BASEDIR, 'error.html')
 EXISTING_PAGE = os.path.join(BASEDIR, 'existing.html')
@@ -79,7 +80,7 @@ class howtos(object):
 
     def getPage(self, page, format='text', newAlso=False):
         """
-        Get a page from the Howto dir and return it as text/html/twiki.
+        Get a page from the Howto dir and return it as text/html/twiki/pdf.
         """
         if (page and (not page in self.privatePages) 
                 and (page.startswith('howto-')) ):
@@ -93,8 +94,8 @@ class howtos(object):
 #                log('fname = %s' % fname)
                 txtTime = os.stat(fname)[-2]
 
-                # If they requested txt, return it, else check html/twiki
-                if format in ('html', 'twiki'):
+                # If they requested txt, return it, else check html/twiki/pdf
+                if format in ('html', 'twiki', 'pdf'):
 
                     if format == 'html':
                         mydirProc = os.path.join(howtoDir, '.html')
@@ -105,7 +106,11 @@ class howtos(object):
                         mydirProc = os.path.join(howtoDir, '.twiki')
                         fnameProc = os.path.join(mydirProc, page + '.twiki')
 
-                    # See if the html/twiki version exists
+                    if format == 'pdf':
+                        mydirProc = os.path.join(howtoDir, '.pdf')
+                        fnameProc = os.path.join(mydirProc, page + '.pdf')
+
+                    # See if the html/twiki/pdf version exists
                     # If doesn't exist or is older than txt, create it
                     try:
                         procTime = os.stat(fnameProc)[-2]
@@ -117,14 +122,17 @@ class howtos(object):
                                 out, st = shell(rst2html + ' %s %s > %s' % (fname, page, fnameProc))
                             if format == 'twiki':
                                 out, st = shell(rst2twiki + ' %s > %s' % (fname, fnameProc))
+                            if format == 'pdf':
+                                out, st = shell(rst2pdf + ' %s %s' % (fname, fnameProc))
+                                self.log('out, st: %s, %s' % (out, st))
                         else:
                             if format == 'html':
                                 out, st = shell(txt2html + ' %s > %s' % (fname, fnameProc))
                             else:
                                 raise Exception
-#                        log('out, st: %s, %s' % (out, st))
+#                        self.log('out, st: %s, %s' % (out, st))
 
-                    # Return the html/twiki version
+                    # Return the html/twiki/pdf version
                     fname = fnameProc
 
                 # Return txt/html version
@@ -176,6 +184,7 @@ class howtos(object):
                         text += '&nbsp;&nbsp;&nbsp;<br/>'
                         text += '<a class="smLink" %s">txt</a>, &nbsp; ' % mylink
                         text += '<a class="smLink" %s&format=twiki">twiki</a>, &nbsp;' % mylink
+                        text += '<a class="smLink" %s&format=pdf">pdf</a>, &nbsp;' % mylink
                         text += '<a class="smLink" %s&action=edit">edit</a>' % mylink
                         text += '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;</td>'
                         if (cont % 4) == 3: text += '\n</tr>' 
@@ -294,6 +303,7 @@ class howtos(object):
             else:
                 mytype="text/plain"
                 if htmlPage.endswith('.html'):  mytype="text/html"
+                if htmlPage.endswith('.pdf'):  mytype="application/pdf"
                 self.show(htmlPage, contentsType=mytype)
 
 
