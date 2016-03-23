@@ -1,23 +1,28 @@
 %(pre)s
 
-<table class="whole">
+<table class="whole" style="table-layout: fixed; width: 100%%;">
 
-<tr class="Whole">
+<!-- This colgroup things defines the widths for body and attribs later -->
+<colgroup>
+  <col style="width: auto;">
+  <col style="width: 8cm;">
+</colgroup>
+
+<tr class="whole">
 <td class="whole">
 %(docline)s
-<!--<div class="document" id="lfc-dpm-csec">-->
 <center> 
- <a href="/cgi-bin/howtos/howtos.py">Back Home</a>  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
- <a href="/cgi-bin/howtos/howtos.py?page=%(title)s&format=txt">txt</a> &nbsp;&nbsp;&nbsp; 
- <a href="/cgi-bin/howtos/howtos.py?page=%(title)s&format=twiki">twiki</a> &nbsp;&nbsp;&nbsp;&nbsp; 
- <a href="/cgi-bin/howtos/howtos.py?page=%(title)s&format=pdf">pdf</a> &nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
- <a href="/cgi-bin/howtos/howtos.py?page=%(title)s&action=edit"><font color="red">Edit</font></a>
+ <a href="/cgi-bin/howtos/howtos3.py">Back Home</a>  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+ <a href="/cgi-bin/howtos/howtos3.py?id=%(id)s&format=rst">rst</a> &nbsp;&nbsp;&nbsp; 
+ <a href="/cgi-bin/howtos/howtos3.py?id=%(id)s&format=twiki">twiki</a> &nbsp;&nbsp;&nbsp;&nbsp; 
+ <a href="/cgi-bin/howtos/howtos3.py?id=%(id)s&format=pdf">pdf</a> &nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+ <a href="/cgi-bin/howtos/howtos3.py?id=%(id)s&action=edit"><font color="red">Edit</font></a>
 </center>
 </td>
 </tr>
 
 <tr class="whole">
-<td class="whole" width="78%%">
+<td class="whole">
 
 %(most)s
 

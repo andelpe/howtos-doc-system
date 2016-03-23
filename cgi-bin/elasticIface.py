@@ -2,7 +2,9 @@ from datetime import datetime
 #from elasticsearch_dsl import DocType, String, Date, Integer, Q
 import elasticsearch_dsl as es
 from elasticsearch_dsl.connections import connections
-import os
+import os, sys
+from utils import err, shell
+from optparse import OptionParser
 
 indexName = 'howtos'
 class Howto(es.DocType):
@@ -10,6 +12,8 @@ class Howto(es.DocType):
     keywords = es.String(index='not_analyzed')
     rstTime = es.Date()
     htmlTime = es.Date()
+    twikiTime = es.Date()
+    pdfTime = es.Date()
     rst = es.String(analyzer='snowball')
     html = es.String(index='no')
     chars = es.Integer()
@@ -30,7 +34,7 @@ class Howto(es.DocType):
 
     @staticmethod
     def exists():
-        es.Index(indexName).exists()
+        return es.Index(indexName).exists()
 
 
 class ElasticIface(object):
@@ -41,6 +45,7 @@ class ElasticIface(object):
         self.verb = verb
         self.created = Howto.exists()
 
+
     def initIndex(self):
         # Create the mappings in elasticsearch
         Howto.init()
@@ -50,6 +55,7 @@ class ElasticIface(object):
     def newHowto(self, name, keywords, rst):
         howto = Howto(name=name, keywords=keywords, rst=rst)
         howto.save()
+        return howto.meta.id
 
 
     def showAll(self, size=None):
@@ -73,6 +79,13 @@ class ElasticIface(object):
 
     def getHowto(self, id):
         return Howto.get(id=id)
+
+
+    # TODO: fix this
+    def getHowtoByName(self, name):
+        s = Howto.search()
+        s = s.query(name=name)
+        return s.execute()
 
 
     def filter(self, names=[], kwords=[], contents=[], op='$and'):
@@ -166,4 +179,84 @@ class ElasticIface(object):
 
         return 0
 
+
+    def rereadFromFiles(self, dir='/var/www/html/howtos/'):
+        """
+        Delete existing ES howto index and create it again using howto files under
+        specified directory.
+        """
+
+        # If it existed, remove it
+        if self.created:  
+            print "Deleting existing ES index"
+            howtos = es.Index('howtos')
+            howtos.delete()
+            self.created = False
+
+        # Now, create it from files again
+        self.parseDir(dir)
+
+        return 0
+
+
 # showAll()
+
+
+def main():
+    """
+     Performes the main task of the script (invoked directly).
+     For information on its functionality, please call the help function.
+    """
+    
+    # Options
+    helpstr = """%prog [options]
+
+Interface for Elasticsearch HowTos service.
+
+The idea is to use this more like a library (from a python program) but limited
+functionality is also available as a script."""
+
+    # Create parser with general help information
+    parser = OptionParser(usage=helpstr, version="%prog-2.0")
+
+    # Option verbose ('store_true' option type)
+    helpstr = "Be verbose (show additional information)"
+    parser.add_option("-v", "--verbose", dest="verb", help=helpstr, action="store_true")
+
+    # Option usage 
+    helpstr = "Show usage information"
+    def myusage(option, opt, value, parser): 
+        print parser.get_usage().split('\n')[0]
+        sys.exit(0)
+    parser.add_option("-u", "--usage", help=helpstr, action="callback",  
+                      callback=myusage)
+    def usage():
+        print parser.get_usage().split('\n')[0]
+
+    helpstr = """Use 'dir' as the base for HowTo files (probabl, for parsing)."""
+    parser.add_option("-d", "--dir", dest="dir", help=helpstr, 
+                      action="store", default='/var/www/html/howtos/')
+
+    helpstr = "Delete existing ES howto index and create it again using howto files"
+    parser.add_option("--reread", dest="reread", help=helpstr, action="store_true")
+
+    # Do parse options
+    (opts, args) = parser.parse_args()
+
+    # Shortcut for verbose
+    verb = opts.verb
+
+    
+    #### REAL MAIN ####
+    if opts.reread:
+        db = ElasticIface(verb=True)
+        db.rereadFromFiles(opts.dir)
+    
+    
+    # Exit successfully
+    return 0
+
+
+###    SCRIPT    ####
+if __name__=="__main__":
+    sys.exit(main())
