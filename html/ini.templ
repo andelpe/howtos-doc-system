@@ -21,6 +21,7 @@
  function addBodyFilter() {
    $("#bodyFilter").html($("#bodyFilter").html() + "<br/>" + bodyFilter);
  }
+
 </script>
 
 
@@ -93,12 +94,13 @@
 <td width="10%%"></td>
 
 <td width="40%%" valign="top">
-<form action="howtos3.py" method="get">
+<form action="howtos3.py" method="post">
   &nbsp;&nbsp;&nbsp;&nbsp; Name: <input type="text" class="add" name="howtoName" />
   <br/>
   &nbsp;&nbsp; Kwords: <input type="text" class="add" name="keywords" /> (comma-separated)
   <br/><br/>
   <center>
+  <input type="hidden" name="action" value="addHowto"/>
   <input type="submit" name="addHowto" class="add" value="Add Howto" />
   </center>
 </form>

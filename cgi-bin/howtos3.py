@@ -29,8 +29,9 @@ rst2html = CGIDIR + '/txt2html/command2.sh'
 rst2twiki = CGIDIR + '/rst2twiki'
 rst2pdf = CGIDIR + '/txt2pdf/command2.sh'
 
-ERROR_PAGE = os.path.join(BASEDIR, 'error.html')
-EXISTING_PAGE = os.path.join(BASEDIR, 'existing.html')
+ERROR_PAGE = os.path.join(BASEDIR, 'error3.html')
+EXISTING_PAGE = os.path.join(BASEDIR, 'existing3.html')
+DELETED_PAGE = os.path.join(BASEDIR, 'deleted3.html')
 
 BASE_CONTENTS = """%(title)s
 %(sub)s
@@ -39,7 +40,7 @@ BASE_CONTENTS = """%(title)s
 .. sectnum::
 
 Intro
-=====
+======
 """
 
 
@@ -175,17 +176,18 @@ class howtos(object):
             id = row.meta.id
             if (not id in self.privatePages):
                     mylink = 'href="howtos3.py?id=%s' % id
+                    myovertext = 'kwords: %s' % (' '.join(row.keywords))
                     if (cont % 4) == 0: text += '\n<tr>'
                     text += '\n<td>'
 #                    text += '<a %s&format=html">%s</a>' % (mylink, page.split('.rst')[0])
 #                    text += '<a %s&format=html">%s</a>' % (mylink, title)
-                    text += '<a %s">%s</a>' % (mylink, title)
+                    text += '<span title="%s"><a %s">%s</a></span>' % (myovertext, mylink, title)
                     text += '&nbsp;&nbsp;&nbsp;<br/>'
-                    text += '<a class="smLink" %s&format=rst">rst</a>, &nbsp; ' % mylink
-                    text += '<a class="smLink" %s&format=twiki">twiki</a>, &nbsp;' % mylink
-                    text += '<a class="smLink" %s&format=pdf">pdf</a>, &nbsp;' % mylink
+                    text += '<a class="smLink" %s&format=rst">rst</a>, ' % mylink
+                    text += '<a class="smLink" %s&format=twiki">twiki</a>, ' % mylink
+                    text += '<a class="smLink" %s&format=pdf">pdf</a>, ' % mylink
                     text += '<a class="smLink" %s&action=edit">edit</a>' % mylink
-                    text += '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;</td>'
+                    text += '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;</td>'
                     if (cont % 4) == 3: text += '\n</tr>' 
                     cont += 1
         text += '\n</table>'
@@ -318,8 +320,9 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
         params['id'] = page.meta.id
 
         # Keywords
-        params['kwords'] = page.keywords
-        params['kwords'] = '\n'.join(['<li>%s</li>' % x for x in params['kwords']])
+        params['kwords'] = ','.join(page.keywords)
+#        params['kwordList'] = '\n'.join(['<li>%s</li>' % x for x in params['kwords']])
+        params['kwordList'] = '\n'.join(['<li>%s</li>' % x for x in page.keywords])
 
         # Metadata
         params['changeTime'] = page.rstTime.strftime('%Y-%m-%d %H:%M')
@@ -335,7 +338,8 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
         while lines:
             line = lines.pop(0)
             if not line.startswith('<div class="document" id='): 
-                part.append(line)
+                if (not line.startswith('</head>')) and (not line.startswith('<body>')):
+                    part.append(line)
             else:
                 params['docline'] = line
                 break
@@ -366,24 +370,49 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
         print self.editTempl % {'contents': contents, 'title': title, 'id': id}
 
 
-    # TODO: make this work
     def addHowto(self, name, keywords, contents=None, edit=False):
         """
         Add new howto entry. By default, with basic contents.
         """
+        self.log('add %s' % name)
         page = self.db.getHowtoByName(name)
 
         # If the page exists already, abort
         if page:
-            self.show(EXISTING_PAGE)
+            self.show(fname=EXISTING_PAGE)
             return
 
-        sub = '*' * len(name)
+        sub = '*' * (len(name)+1)
         basecontents = BASE_CONTENTS % ({'title': name, 'sub': sub})
+        keywords = keywords.split(',')
 
-        id = self.db.newHowto(name, tokens, rst)
+        id = self.db.newHowto(name, keywords, basecontents)
 
         if edit:  self.edit(id, name, contents=basecontents)
+
+    
+    def removeHowto(self, id):
+        """
+        Removes specified HowTo.
+        """
+        self.log('delete %s' % id)
+        self.db.deleteHowto(id)
+        self.show(fname=DELETED_PAGE)
+
+
+    def changeKwords(self, id, keywords):
+        self.log('changeKwords %s' % id)
+        keywords = keywords.split(',')
+#        self.db.update(id, {'keywords': keywords, 'rstTime': datetime.now()})
+        self.db.update(id, {'keywords': keywords})
+        self.output(id)
+
+
+    def changeName(self, id, name):
+        self.log('changeName %s %s' % (id, name))
+#        self.db.update(id, {'name': name, 'rstTime': datetime.now()})
+        self.db.update(id, {'name': name})
+        self.output(id)
 
 
     def save(self, id, contents):
@@ -435,22 +464,28 @@ title  = args.getvalue('titleFilter')
 kword  = args.getvalue('kwordFilter')
 body   = args.getvalue('bodyFilter')
 action = args.getvalue('action')
-addHowto  = args.getvalue('addHowto')
 howtoName = args.getvalue('howtoName')
+#addHowto  = args.getvalue('addHowto')
+#changeKwords  = args.getvalue('changeKwords')
+name = args.getvalue('name')
 keywords = args.getvalue('keywords')
 
 # Run the main method that returns the html result
 howto = howtos()
-if addHowto:
+if action == 'addHowto':
     if not howtoName: howto.output(None)
     howto.addHowto(howtoName, keywords, edit=True)
+elif action == 'changeKwords':
+    howto.changeKwords(id, keywords)
+elif action == 'changeName':
+    howto.changeName(id, name)
 elif action == 'save':
     contents = args.getvalue('contents')
     howto.save(id, contents)
-elif action == 'add':
-    contents = args.getvalue('contents')
-    howto.add(id, contents)
-elif action == 'remoteUpdate':
-    howto.remoteUpdate(page, msg)
+elif action == 'remove':
+    howto.removeHowto(id)
+#elif action == 'remoteUpdate':
+#    howto.remoteUpdate(page, msg)
+
 else:
     howto.output(id, title, kword, body, format, action)

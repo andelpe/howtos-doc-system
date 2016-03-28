@@ -77,15 +77,26 @@ class ElasticIface(object):
             print 'chars:', howto.chars
             print
 
+
     def getHowto(self, id):
         return Howto.get(id=id)
 
 
-    # TODO: fix this
     def getHowtoByName(self, name):
         s = Howto.search()
-        s = s.query(name=name)
-        return s.execute()
+        s = s.query(es.Q({'match': {'name.raw': name}}))
+        res = s.execute()
+        if len(res) == 1:
+            return res[0]
+        elif len(res)>1 : 
+            raise Exception('Unexpected! More than one HowTo maching!')
+        else:
+            return None
+
+
+    def deleteHowto(self, id):
+        doc = Howto.get(id=id)
+        doc.delete()
 
 
     def filter(self, names=[], kwords=[], contents=[], op='$and'):
@@ -100,8 +111,8 @@ class ElasticIface(object):
         passed, we raise an exception.
         """     
         queries = []
-        for name in names:        queries.append(es.Q('regexp', name=name))
-        for kword in kwords:      queries.append(es.Q('regexp', keywords=kword))
+        for name in names:        queries.append(es.Q('regexp', name='.*'+name+'.*'))
+        for kword in kwords:      queries.append(es.Q('regexp', keywords='.*'+kword+'.*'))
         for content in contents:  queries.append(es.Q('match', rst=content))
             
         if op == '$and':    myfunc = lambda x,y: x & y
