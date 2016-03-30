@@ -12,6 +12,7 @@ from elasticIface import ElasticIface
 import bson
 from utils import shell, commandError
 from datetime import datetime
+import json
 
 
 ### CONSTANTS ####
@@ -195,6 +196,19 @@ class howtos(object):
         return text
 
 
+    def list(self, titleFilter=[], kwordFilter=[], bodyFilter=[]):
+        """
+        Produce a json list of matching howtos (returns id, name and kwords only).
+        """
+        result = []
+        rows = self.db.filter(names=titleFilter, kwords=kwordFilter, contents=bodyFilter)
+        for row in rows:
+            result.append({'name': row.name, 'id': row.meta.id, 'kwords': ','.join(row.keywords)})
+
+        print "Content-type: application/json\n" 
+        print json.dumps(result)
+
+
     def produceIndex(self, titleFilter=[], kwordFilter=[], bodyFilter=[]):
         """
         Produce an index page to look for documents.
@@ -255,11 +269,15 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
         if not bodyFilter:  bodyFilter = []
         elif type(bodyFilter)  != list:   bodyFilter = [bodyFilter]
 
-        # Show index
-        if (not id) or (id == 'index.html'):
+        # If action was list, return json
+        if action == 'list':
+            self.list(titleFilter, kwordFilter, bodyFilter)
+
+        # If no id is given, show index
+        elif (not id) or (id == 'index.html'):
             self.show(contents=self.produceIndex(titleFilter, kwordFilter, bodyFilter))
 
-        # Show page
+        # Else, we must show a concrete page
         else:
 
             
