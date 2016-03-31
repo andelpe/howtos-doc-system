@@ -258,6 +258,7 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
         Basic method to display the index page (with appropriate filter) or
         a howto page in the specified format, or even the edition page. 
         """
+#        self.log("In output: %s" % action)
 
         # Sanitize filters (at least one filter of each, but by default containing nothing)
         if not titleFilter:  titleFilter = []
@@ -392,21 +393,27 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
         """
         Add new howto entry. By default, with basic contents.
         """
-        self.log('add %s' % name)
+        self.log('add -- %s -- %s' % (name, keywords))
         page = self.db.getHowtoByName(name)
 
         # If the page exists already, abort
         if page:
-            self.show(fname=EXISTING_PAGE)
-            return
+            self.log('existing page -- %s' % (page.name))
+            if edit:  self.show(fname=EXISTING_PAGE)
+            else:     print("Status: 400 Bad Request -- Page exists already\n\n")
+            return 400
 
         sub = '*' * (len(name)+1)
-        basecontents = BASE_CONTENTS % ({'title': name, 'sub': sub})
         keywords = keywords.split(',')
+        if not contents:  contents = BASE_CONTENTS % ({'title': name, 'sub': sub})
 
-        id = self.db.newHowto(name, keywords, basecontents)
+        id = self.db.newHowto(name, keywords, contents)
 
-        if edit:  self.edit(id, name, contents=basecontents)
+        if edit:  
+            self.edit(id, name, contents=contents)
+        else:     
+            print "Content-type: application/json\n\n"
+            print json.dumps({'id': id})
 
     
     def removeHowto(self, id):
@@ -487,10 +494,13 @@ howtoName = args.getvalue('howtoName')
 #changeKwords  = args.getvalue('changeKwords')
 name = args.getvalue('name')
 keywords = args.getvalue('keywords')
+contents = args.getvalue('contents')
 
 # Run the main method that returns the html result
 howto = howtos()
 if action == 'addHowto':
+    howto.addHowto(howtoName, keywords, contents=contents)
+elif action == 'editNewHowto':
     if not howtoName: howto.output(None)
     howto.addHowto(howtoName, keywords, edit=True)
 elif action == 'changeKwords':
@@ -498,7 +508,6 @@ elif action == 'changeKwords':
 elif action == 'changeName':
     howto.changeName(id, name)
 elif action == 'save':
-    contents = args.getvalue('contents')
     howto.save(id, contents)
 elif action == 'remove':
     howto.removeHowto(id)

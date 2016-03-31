@@ -36,7 +36,7 @@ textarea {
           {value: $("#editArea").val(), lineNumbers: true}
         );
         $("#editArea").remove();
-        myCodeMirror.setSize("100%%", "100%%");
+        myCodeMirror.setSize("1100", "725");
         myCodeMirror.on("change", function(myCodeMirror, change) {
           $("#status").text("Modified");
           clean = 0;
@@ -83,7 +83,7 @@ textarea {
           $.post("/cgi-bin/howtos/howtos.py",
             {action: "save", page: "%(title)s", contents: thecontents},
             function(data){
-              alert("Saved"); 
+              //alert("Saved"); 
               $("#status").text("");
               clean = 0;
             }
