@@ -182,7 +182,16 @@ class ElasticIface(object):
             kwords = tokens
 
             f = open(hDir+'/'+fname)
-            rst = f.read().decode("latin-1").encode("utf-8")
+            rst = f.read()
+
+            # We insert using Unicode, however, we first need to decode the original
+            # files, we try with UTF-8, but if that fails, then we try with latin-1...
+            # else, we fail for good
+            try:
+                rst = unicode(rst, encoding='utf-8')
+            except UnicodeDecodeError as inst:
+                rst = unicode(rst, encoding='latin-1')
+
             f.close()
 
             # Insert into ElasticSearch
@@ -244,7 +253,7 @@ functionality is also available as a script."""
     def usage():
         print parser.get_usage().split('\n')[0]
 
-    helpstr = """Use 'dir' as the base for HowTo files (probabl, for parsing)."""
+    helpstr = """Use 'dir' as the base for HowTo files (probably, for parsing)."""
     parser.add_option("-d", "--dir", dest="dir", help=helpstr, 
                       action="store", default='/var/www/html/howtos/')
 

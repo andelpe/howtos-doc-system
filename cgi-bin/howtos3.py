@@ -87,17 +87,17 @@ class howtos(object):
         f.close()
 
         # Prepare logfile
-        self.logf = open(logfile, 'a')
+        self.mylogf = open(logfile, 'a')
         
         # Connect to mongoDB
         self.db = ElasticIface()
 
 
-    def log(self, msg):
+    def mylog(self, msg):
         """
         Log specified message to defined logfile.
         """
-        self.logf.write('%s %s \n' % (time.strftime('%Y-%m-%d %H:%M:%S'), msg))
+        self.mylogf.write('%s %s \n' % (time.strftime('%Y-%m-%d %H:%M:%S'), msg))
 
 
 #    def getPage(self, id, format='html', newAlso=False):
@@ -106,12 +106,13 @@ class howtos(object):
         Get a Howto and return it as text/html/twiki.
         """
         try:
-            # TODO: private pages will have a private tag... implement that
+            # Here we get the RST contents from ES, in Unicode type
+            # Thus, we'd better encode them before passing to shell for HTML/twiki.. production
 
             mypage = self.db.getHowto(id)
             if not mypage: return None
-#            self.log("MYPAGE: %s" % mypage)
-
+#            self.mylog("MYPAGE: %s" % mypage)
+           
             if format == 'html':
 
                 # Check if HTML field is there and is up-to-date. If not, produce it and store it
@@ -125,7 +126,7 @@ class howtos(object):
 
                 # Check if Twiki field is there and is up-to-date. If not, produce it and store it
                 if ('twiki' not in mypage) or ('twikiTime' not in mypage) or (mypage.twikiTime < mypage.rstTime):
-#                    self.log("Going into Twiki production")
+#                    self.mylog("Going into Twiki production")
                     out = shell(rst2twiki + ' -', input=mypage.rst.encode('utf-8'))
                     self.db.update(mypage.meta.id, {'twiki': out, 'twikiTime': datetime.now()})
                     mypage = self.db.getHowto(id)
@@ -134,10 +135,12 @@ class howtos(object):
 
                 # Check if PDF field is there and is up-to-date. If not, produce it and store it
                 if ('pdf' not in mypage) or ('pdfTime' not in mypage) or (mypage.pdfTime < mypage.rstTime):
-#                    self.log("Going into PDF production")
+                    # We encode in latin-1 for PDF production
                     out = shell(rst2pdf + ' -', input=mypage.rst.encode('latin-1'))
-                    out = out.decode("latin-1")
-                    self.db.update(mypage.meta.id, {'pdf': out, 'pdfTime': datetime.now()})
+                    # When storing in the DB, we need to explicitely convert to unicode to
+                    # indicate that latin-1 should be used to decode
+                    self.db.update(mypage.meta.id, {'pdf': unicode(out, encoding='latin-1'), 'pdfTime': datetime.now()})
+                    self.mylog("....After DB update")
                     mypage = self.db.getHowto(id)
 
             # All OK
@@ -145,7 +148,7 @@ class howtos(object):
 
         except Exception, inst:
             # TODO: Improve this
-            self.log("EXCEPTION: %s" % inst)
+            self.mylog("EXCEPTION: %s" % inst)
             return None
 
 
@@ -258,7 +261,7 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
         Basic method to display the index page (with appropriate filter) or
         a howto page in the specified format, or even the edition page. 
         """
-#        self.log("In output: %s" % action)
+#        self.mylog("In output: %s" % action)
 
         # Sanitize filters (at least one filter of each, but by default containing nothing)
         if not titleFilter:  titleFilter = []
@@ -320,12 +323,14 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
                 contents = f.read()
                 f.close()
             elif page:
+                # Here we read from Elastic, and we get Unicode type!
+                # Thus, when showing (below) we need to encode before printing
                 if   format == "html":   contents = self.showWithMeta(page)
                 elif format == "twiki":  contents = page.twiki
                 elif format == "pdf":    contents = page.pdf
                 else:                    contents = page.rst
 
-        # Return the result
+        # Return the result (encode in UTF-8)
         if format == 'pdf':  print contents.encode('latin-1')
         else:                print contents.encode('utf-8')
 
@@ -382,23 +387,26 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
         """
         Shows an editor page for the specified file name.
         """
-        self.log('edit %s, %s' % (id, title))
+        self.mylog('edit %s, %s' % (id, title))
         print "Content-type: text/html\n\n"
         if not contents:  contents = getPage(id, format='rst').rst
 
-        print self.editTempl % {'contents': contents, 'title': title, 'id': id}
+        results = self.editTempl % {'contents': contents, 'title': title, 'id': id}
+        results = results.encode('UTF-8')
+
+        print results
 
 
     def addHowto(self, name, keywords, contents=None, edit=False):
         """
         Add new howto entry. By default, with basic contents.
         """
-        self.log('add -- %s -- %s' % (name, keywords))
+        self.mylog('add -- %s -- %s' % (name, keywords))
         page = self.db.getHowtoByName(name)
 
         # If the page exists already, abort
         if page:
-            self.log('existing page -- %s' % (page.name))
+            self.mylog('existing page -- %s' % (page.name))
             if edit:  self.show(fname=EXISTING_PAGE)
             else:     print("Status: 400 Bad Request -- Page exists already\n\n")
             return 400
@@ -420,13 +428,13 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
         """
         Removes specified HowTo.
         """
-        self.log('delete %s' % id)
+        self.mylog('delete %s' % id)
         self.db.deleteHowto(id)
         self.show(fname=DELETED_PAGE)
 
 
     def changeKwords(self, id, keywords):
-        self.log('changeKwords %s' % id)
+        self.mylog('changeKwords %s' % id)
         keywords = keywords.split(',')
 #        self.db.update(id, {'keywords': keywords, 'rstTime': datetime.now()})
         self.db.update(id, {'keywords': keywords})
@@ -434,7 +442,7 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
 
 
     def changeName(self, id, name):
-        self.log('changeName %s %s' % (id, name))
+        self.mylog('changeName %s %s' % (id, name))
 #        self.db.update(id, {'name': name, 'rstTime': datetime.now()})
         self.db.update(id, {'name': name})
         self.output(id)
@@ -445,7 +453,7 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
         Save the passed RST contents on the specified page (if must have been created
         beforehand).
         """
-        self.log('save %s' % id)
+        self.mylog('save %s' % id)
 
         try:
             self.db.update(id, {'rst': contents, 'rstTime': datetime.now()})
@@ -465,7 +473,7 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
         """
         Commit update page into mercurial repo.
         """
-        self.log('remoteUpdate %s' % pageName)
+        self.mylog('remoteUpdate %s' % pageName)
 
         os.chdir(howtoDir)
         try:
