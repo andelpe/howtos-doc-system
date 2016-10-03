@@ -433,11 +433,17 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
         self.show(fname=DELETED_PAGE)
 
 
-    def changeKwords(self, id, keywords):
-        self.mylog('changeKwords %s' % id)
-        keywords = keywords.split(',')
-#        self.db.update(id, {'keywords': keywords, 'rstTime': datetime.now()})
-        self.db.update(id, {'keywords': keywords})
+    def changeKwords(self, id, keywords, replace='yes'):
+        self.mylog('changeKwords %s, replace: %s' % (id, replace))
+
+        if replace == 'yes':
+            kwdList = keywords.split(',')
+        else:
+            mypage = self.db.getHowto(id)
+            kwdList = mypage.keywords
+            kwdList.extend(keywords.split(','))
+
+        self.db.update(id, {'keywords': kwdList})
         self.output(id)
 
 
@@ -468,21 +474,21 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
 #            print "ERROR when saving %s: can't find page" % (pageName)
 
 
-    # TODO: uses of this should basically be replaced by 'save'
-    def remoteUpdate(self, pageName, msg="Update"):
-        """
-        Commit update page into mercurial repo.
-        """
-        self.mylog('remoteUpdate %s' % pageName)
-
-        os.chdir(howtoDir)
-        try:
-#            out = shell("hg ci -A -u howtos.py -m 'Remote - %s' %s" % (msg, pageName))
-            print "Content-type: text/html\n\n"
-            print "OK"
-        except commandError, ex: 
-            print "Content-type: text/html\n\n"
-            print "ERROR when remote-updating %s: %s" % (pageName, ex)
+#    # TODO: uses of this should basically be replaced by 'save'
+#    def remoteUpdate(self, pageName, msg="Update"):
+#        """
+#        Commit update page into mercurial repo.
+#        """
+#        self.mylog('remoteUpdate %s' % pageName)
+#
+#        os.chdir(howtoDir)
+#        try:
+##            out = shell("hg ci -A -u howtos.py -m 'Remote - %s' %s" % (msg, pageName))
+#            print "Content-type: text/html\n\n"
+#            print "OK"
+#        except commandError, ex: 
+#            print "Content-type: text/html\n\n"
+#            print "ERROR when remote-updating %s: %s" % (pageName, ex)
 
 
 ### MAIN ### 
@@ -502,6 +508,7 @@ howtoName = args.getvalue('howtoName')
 #changeKwords  = args.getvalue('changeKwords')
 name = args.getvalue('name')
 keywords = args.getvalue('keywords')
+replace = args.getvalue('replace')
 contents = args.getvalue('contents')
 
 # Run the main method that returns the html result
@@ -512,7 +519,7 @@ elif action == 'editNewHowto':
     if not howtoName: howto.output(None)
     howto.addHowto(howtoName, keywords, edit=True)
 elif action == 'changeKwords':
-    howto.changeKwords(id, keywords)
+    howto.changeKwords(id, keywords, replace)
 elif action == 'changeName':
     howto.changeName(id, name)
 elif action == 'save':
