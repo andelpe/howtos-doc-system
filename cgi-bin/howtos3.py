@@ -24,6 +24,8 @@ privateHowtos = os.path.join(howtoDir, '.private')
 showTempl = os.path.join(BASEDIR, 'show.templ')
 editTempl = os.path.join(BASEDIR, 'edit3.templ')
 iniTempl  = os.path.join(BASEDIR, 'ini.templ')
+delTempl = os.path.join(BASEDIR, 'deleted3.templ')
+updateKTempl = os.path.join(BASEDIR, 'updateK3.templ')
 
 txt2html = CGIDIR + '/simplish.py'
 rst2html = CGIDIR + '/txt2html/command2.sh'
@@ -32,7 +34,6 @@ rst2pdf = CGIDIR + '/txt2pdf/command2.sh'
 
 ERROR_PAGE = os.path.join(BASEDIR, 'error3.html')
 EXISTING_PAGE = os.path.join(BASEDIR, 'existing3.html')
-DELETED_PAGE = os.path.join(BASEDIR, 'deleted3.html')
 
 BASE_CONTENTS = """%(title)s
 %(sub)s
@@ -259,7 +260,8 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
                format='html', action='show'):
         """
         Basic method to display the index page (with appropriate filter) or
-        a howto page in the specified format, or even the edition page. 
+        a howto page in the specified format, or the edition page, or even a 
+        simple info message.
         """
 #        self.mylog("In output: %s" % action)
 
@@ -284,7 +286,6 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
         # Else, we must show a concrete page
         else:
 
-            
             if action == 'edit':  format = 'rst'
             mypage = self.getPage(id, format)
 
@@ -424,27 +425,60 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
             print json.dumps({'id': id})
 
     
-    def removeHowto(self, id):
+    def removeHowtos(self, ids):
         """
-        Removes specified HowTo.
+        Removes specified HowTos.
         """
-        self.mylog('delete %s' % id)
-        self.db.deleteHowto(id)
-        self.show(fname=DELETED_PAGE)
+        if type(ids) != list:  ids = [ids]
+
+        names = []
+        for id in ids:
+            self.mylog('delete %s' % id)
+            names.append(self.db.getHowto(id).name + ('  (%s)' % id))
+            self.db.deleteHowto(id)
+
+        f = open(delTempl)
+        out = f.read()
+        f.close()
+
+        print "Content-type: text/html\n\n"
+        print out % {'hlist': '\n<br/>'.join(names)}
 
 
-    def changeKwords(self, id, keywords, replace='yes'):
-        self.mylog('changeKwords %s, replace: %s' % (id, replace))
+    def changeKwords(self, ids, keywords, replace='yes'):
+        self.mylog('changeKwords %s, replace: %s' % (ids, replace))
 
-        if replace == 'yes':
-            kwdList = keywords.split(',')
-        else:
-            mypage = self.db.getHowto(id)
-            kwdList = mypage.keywords
-            kwdList.extend(keywords.split(','))
+        newKwds = keywords.split(',')
 
-        self.db.update(id, {'keywords': kwdList})
-        self.output(id)
+        if type(ids) != list:  
+
+            if replace == 'yes':
+                kwdList = newKwds
+            else:
+                kwdList = self.db.getHowto(ids).keywords
+                kwdList.extend(newKwds)
+
+            self.db.update(ids, {'keywords': kwdList})
+            self.output(ids)
+            return 
+
+        names = []
+        for id in ids:
+            doc = self.db.getHowto(id)
+            if replace == 'yes':
+                kwdList = newKwds
+            else:
+                kwdList = doc.keywords
+                kwdList.extend(newKwds)
+            self.db.update(id, {'keywords': kwdList})
+            names.append(doc.name + ('  (%s)' % id))
+
+            f = open(updateKTempl)
+            out = f.read()
+            f.close()
+
+            print "Content-type: text/html\n\n"
+            print out % {'hlist': '\n<br/>'.join(names)}
 
 
     def changeName(self, id, name):
@@ -525,7 +559,7 @@ elif action == 'changeName':
 elif action == 'save':
     howto.save(id, contents)
 elif action == 'remove':
-    howto.removeHowto(id)
+    howto.removeHowtos(id)
 #elif action == 'remoteUpdate':
 #    howto.remoteUpdate(page, msg)
 

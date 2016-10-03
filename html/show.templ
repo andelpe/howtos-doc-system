@@ -26,6 +26,7 @@
       $("#keywords").html("\
         <form action=\"howtos3.py\" method=\"post\">\
           <input type=\"hidden\" name=\"id\" value=\"%(id)s\"/>\
+          <input type=\"hidden\" name=\"replace\" value=\"yes\"/>\
           <input type=\"hidden\" name=\"action\" value=\"changeKwords\"/>\
           Kwords: <input type=\"text\" class=\"add\" name=\"keywords\" value=\"%(kwords)s\"/>\
           <br/>(comma-separated)<br/> \
@@ -87,7 +88,7 @@
  <a href="/cgi-bin/howtos/howtos3.py?id=%(id)s&format=pdf">pdf</a> &nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
  <a href="/cgi-bin/howtos/howtos3.py">Back Home</a>  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp;
  <a href="/cgi-bin/howtos/howtos3.py?id=%(id)s&action=edit"><font color="red">Edit</font></a>  &nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
- <a id="removeLink"><font color="darkred">Remove</font></a>
+ <a href="/cgi-bin/howtos/howtos3.py?id=%(id)s&action=remove"><font color="darkred">Remove</font></a>
 </center>
 </td>
 </tr>
