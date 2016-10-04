@@ -111,7 +111,8 @@ class ElasticIface(object):
         passed, we raise an exception.
         """     
         queries = []
-        for name in names:        queries.append(es.Q('regexp', name='.*'+name+'.*'))
+#        for name in names:        queries.append(es.Q('regexp', name='.*'+name+'.*'))
+        for name in names:        queries.append(es.Q({'regexp': {'name.raw': '.*'+name+'.*'}}))
         for kword in kwords:      queries.append(es.Q('regexp', keywords='.*'+kword+'.*'))
         for content in contents:  queries.append(es.Q('match', rst=content))
             
@@ -253,7 +254,7 @@ functionality is also available as a script."""
     def usage():
         print parser.get_usage().split('\n')[0]
 
-    helpstr = """Use 'dir' as the base for HowTo files (probably, for parsing)."""
+    helpstr = """Use 'dir' as the base for HowTo files (probabl, for parsing)."""
     parser.add_option("-d", "--dir", dest="dir", help=helpstr, 
                       action="store", default='/var/www/html/howtos/')
 

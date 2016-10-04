@@ -2,6 +2,12 @@
 
 #from __future__ import division, print_function
 
+# TODO: Modify docs index page
+#       - Show recently and oftenly accessed HowTos for quick click
+#       - List common keywords for quick search
+# TODO: Modify docs list presentation (in index/search results)
+#       - Show name but also keywords ?
+# TODO: Support markdown contents for showing and editing!
 
 ### IMPORTS ###
 import os, logging, time
@@ -169,13 +175,14 @@ class howtos(object):
 #        return True
 
 
-    def howtoList(self, titleFilter, kwordFilter, bodyFilter):
+#    def howtoList(self, titleFilter, kwordFilter, bodyFilter):
+    def howtoList(self, rows):
         """
         Return the list of files in the Howto dir
         """
         text = '<table>'
         cont = 0
-        rows = self.db.filter(names=titleFilter, kwords=kwordFilter, contents=bodyFilter)
+#        rows = self.db.filter(names=titleFilter, kwords=kwordFilter, contents=bodyFilter)
         for row in rows:
             title = row.name
             id = row.meta.id
@@ -200,12 +207,13 @@ class howtos(object):
         return text
 
 
-    def list(self, titleFilter=[], kwordFilter=[], bodyFilter=[]):
+#    def list(self, titleFilter=[], kwordFilter=[], bodyFilter=[]):
+    def list(self, rows):
         """
         Produce a json list of matching howtos (returns id, name and kwords only).
         """
         result = []
-        rows = self.db.filter(names=titleFilter, kwords=kwordFilter, contents=bodyFilter)
+#        rows = self.db.filter(names=titleFilter, kwords=kwordFilter, contents=bodyFilter)
         for row in rows:
             result.append({'name': row.name, 'id': row.meta.id, 'kwords': ','.join(row.keywords)})
 
@@ -213,7 +221,7 @@ class howtos(object):
         print json.dumps(result)
 
 
-    def produceIndex(self, titleFilter=[], kwordFilter=[], bodyFilter=[]):
+    def produceIndex(self, rows=None, titleFilter=[], kwordFilter=[], bodyFilter=[]):
         """
         Produce an index page to look for documents.
         """
@@ -246,18 +254,20 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
 #        bodyText = """<input type="button" value="+" onclick="addBodyFilter()" />"""
 #        bodyText += "<br/>\n&nbsp; &nbsp; ".join([baseBody % elem  for elem in bodyFilter]) 
 
+        mylist = self.howtoList(rows) if rows!=None else self.howtoList(titleFilter, kwordFilter, bodyFilter)
         map = {
             'titleFilter': createText(titleFilter, 'addTitleFilter()', baseTitle),
             'kwordFilter': createText(kwordFilter, 'addKwordFilter()', baseKword),
             'bodyFilter':  createText(bodyFilter, 'addBodyFilter()', baseBody),
-            'list': self.howtoList(titleFilter, kwordFilter, bodyFilter),
+#            'list': self.howtoList(titleFilter, kwordFilter, bodyFilter),
+            'list': self.howtoList(rows),
         }
 
         return text % map
 
 
     def output(self, id=None, titleFilter=[], kwordFilter=[], bodyFilter=[], 
-               format='html', action='show'):
+               format='html', action='show', direct=False):
         """
         Basic method to display the index page (with appropriate filter) or
         a howto page in the specified format, or the edition page, or even a 
@@ -277,11 +287,24 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
 
         # If action was list, return json
         if action == 'list':
-            self.list(titleFilter, kwordFilter, bodyFilter)
+            # Get matching docs
+            rows = self.db.filter(names=titleFilter, kwords=kwordFilter, contents=bodyFilter)
+            # Return appropiate json 
+            self.list(rows)
 
-        # If no id is given, show index
+        # If no id is given, filter the DB
         elif (not id) or (id == 'index.html'):
-            self.show(contents=self.produceIndex(titleFilter, kwordFilter, bodyFilter))
+
+            # Get matching docs
+            rows = self.db.filter(names=titleFilter, kwords=kwordFilter, contents=bodyFilter)
+
+            # If only one match (and 'direct' flag), show it directly
+            if direct and (len(rows) == 1):
+                self.show(rows[0], format=format, title=rows[0].name)
+
+            # Else, produce the page showing the complete list
+            else:
+                self.show(contents=self.produceIndex(rows, titleFilter, kwordFilter, bodyFilter))
 
         # Else, we must show a concrete page
         else:
@@ -544,10 +567,14 @@ name = args.getvalue('name')
 keywords = args.getvalue('keywords')
 replace = args.getvalue('replace')
 contents = args.getvalue('contents')
+direct = args.getvalue('direct')
+link = args.getvalue('link')
 
 # Run the main method that returns the html result
 howto = howtos()
-if action == 'addHowto':
+if link:
+    howto.output(titleFilter=link, direct=True)
+elif action == 'addHowto':
     howto.addHowto(howtoName, keywords, contents=contents)
 elif action == 'editNewHowto':
     if not howtoName: howto.output(None)
@@ -564,4 +591,4 @@ elif action == 'remove':
 #    howto.remoteUpdate(page, msg)
 
 else:
-    howto.output(id, title, kword, body, format, action)
+    howto.output(id, title, kword, body, format, action, direct=direct)
