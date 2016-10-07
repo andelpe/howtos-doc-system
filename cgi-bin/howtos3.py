@@ -36,6 +36,8 @@ updateKTempl = os.path.join(BASEDIR, 'updateK3.templ')
 txt2html = CGIDIR + '/simplish.py'
 rst2html = CGIDIR + '/txt2html/command2.sh'
 rst2twiki = CGIDIR + '/rst2twiki'
+rst2mdown = CGIDIR + '/rst2mdown'
+mdown2rst = CGIDIR + '/mdown2rst'
 rst2pdf = CGIDIR + '/txt2pdf/command2.sh'
 
 ERROR_PAGE = os.path.join(BASEDIR, 'error3.html')
@@ -120,6 +122,15 @@ class howtos(object):
             if not mypage: return None
 #            self.mylog("MYPAGE: %s" % mypage)
            
+            if format == 'markdown':
+
+                # Check if Markdown field is there and is up-to-date. If not, produce it and store it
+                if ('markdown' not in mypage) or ('markdownTime' not in mypage) or (mypage.markdownTime < mypage.rstTime):
+                    out = shell(rst2mdown + ' -', input=mypage.rst.encode('utf-8'))
+                    self.db.update(mypage.meta.id, {'markdown': out, 'markdownTime': datetime.now()})
+                    mypage = self.db.getHowto(id)
+
+
             if format == 'html':
 
                 # Check if HTML field is there and is up-to-date. If not, produce it and store it
@@ -273,7 +284,7 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
         a howto page in the specified format, or the edition page, or even a 
         simple info message.
         """
-#        self.mylog("In output: %s" % action)
+        self.mylog("In output: %s, %s" % (action, format))
 
         # Sanitize filters (at least one filter of each, but by default containing nothing)
         if not titleFilter:  titleFilter = []
@@ -309,7 +320,7 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
         # Else, we must show a concrete page
         else:
 
-            if action == 'edit':  format = 'rst'
+#            if action == 'edit':  format = 'rst'
             mypage = self.getPage(id, format)
 
             if not mypage: 
@@ -318,7 +329,7 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
                 return 5
 
             if action == 'edit':
-                self.edit(id, title=mypage.name, contents=mypage.rst)
+                self.edit(id, title=mypage.name, format=format)
             else:
 #                mytype="text/plain"
 #                if format == 'html':  mytype="text/html"
@@ -349,10 +360,11 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
             elif page:
                 # Here we read from Elastic, and we get Unicode type!
                 # Thus, when showing (below) we need to encode before printing
-                if   format == "html":   contents = self.showWithMeta(page)
-                elif format == "twiki":  contents = page.twiki
-                elif format == "pdf":    contents = page.pdf
-                else:                    contents = page.rst
+                if   format == "html":      contents = self.showWithMeta(page)
+                elif format == "twiki":     contents = page.twiki
+                elif format == "pdf":       contents = page.pdf
+                elif format == "markdown":  contents = page.markdown
+                else:                       contents = page.rst
 
         # Return the result (encode in UTF-8)
         if format == 'pdf':  print contents.encode('latin-1')
@@ -407,15 +419,16 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
         return self.showTempl % params
 
 
-    def edit(self, id, title='', contents=''):
+    def edit(self, id, title='', contents='', format='rst'):
         """
         Shows an editor page for the specified file name.
         """
         self.mylog('edit %s, %s' % (id, title))
         print "Content-type: text/html\n\n"
-        if not contents:  contents = getPage(id, format='rst').rst
+        if not contents:  contents = getattr(self.getPage(id, format=format), format)
 
-        results = self.editTempl % {'contents': contents, 'title': title, 'id': id}
+        params = {'contents': contents, 'title': title, 'id': id, 'format': format}
+        results = self.editTempl % params
         results = results.encode('UTF-8')
 
         print results
@@ -511,16 +524,24 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
         self.output(id)
 
 
-    def save(self, id, contents):
+    def save(self, id, contents, format="rst"):
         """
-        Save the passed RST contents on the specified page (if must have been created
-        beforehand).
+        Save the passed contents on the specified page (if must have been created
+        beforehand). The format must be either 'rst' (default) or 'markdown'. If the
+        second is used, an automatic translation to 'rst' is performed (since this is the
+        authoritative source for everything else) and DB is updated with both.
         """
-        self.mylog('save %s' % id)
+        self.mylog('save %s, %s' % (id, format))
+
+        if format == 'markdown':
+            params = {'markdown': contents, 'markdownTime': datetime.now()}
+            out = shell(mdown2rst + ' -', input=contents)
+            params.update({'rst': out, 'rstTime': datetime.now()})
+        else:
+            params = {'rst': contents, 'rstTime': datetime.now()}
 
         try:
-            self.db.update(id, {'rst': contents, 'rstTime': datetime.now()})
-#           mypage = self.db.getHowto(id)
+            self.db.update(id, params)
             print "Content-type: text/html\n\n"
             print "OK"
         except Exception, ex:
@@ -584,7 +605,7 @@ elif action == 'changeKwords':
 elif action == 'changeName':
     howto.changeName(id, name)
 elif action == 'save':
-    howto.save(id, contents)
+    howto.save(id, contents, format)
 elif action == 'remove':
     howto.removeHowtos(id)
 #elif action == 'remoteUpdate':

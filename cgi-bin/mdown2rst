@@ -1,0 +1,4 @@
+#!/bin/bash
+
+pandoc -s -f markdown -t rst  | sed '0,/^ *$/s##\n.. contents:: Table of Contents\n.. sectnum::\n#' 
+

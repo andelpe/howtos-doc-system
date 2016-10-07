@@ -39,18 +39,18 @@ tt.docutils{
 }
 
 /* Auto-generated tables */
-table not(.whole) { 
+table:not(.whole) { 
   border: 2px solid black;
   border-collapse:collapse;
 }
 table.whole {
 }
-tr:nth-child(odd)  not(.whole) { background-color:Ivory; }
-tr:nth-child(even) not(.whole) { background-color:LightGray; }
+tr:nth-child(odd):not(.whole) { background-color:Ivory; }
+tr:nth-child(even):not(.whole) { background-color:LightGray; }
 tr.whole{
 }
 th { background-color:LightBlue; }
-td not(.whole) {
+td:not(.whole) {
  font-family:monospace;
  color:blue;
  text-align:center;
@@ -60,6 +60,10 @@ td.meta{
  vertical-align: top; 
  padding: 3px;
  font-size: 85%;
+ border: 0;
+ color:black;
+ font-family: Times New Roman, Times, serif;
+ text-align: left;
 }
 
 /* Do not underline links */
@@ -100,4 +104,35 @@ h2 {
 hr.footer{
  margin-top: 60px;
 }
+
+/* Add some styles for hover menus */
+
+/* The container <div> - needed to position the dropdown content */
+.dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+/* Dropdown Content (Hidden by Default) */
+.dropdown-content {
+    display: none;
+    position: absolute;
+    background-color: #f9f9f9;
+/*     min-width: 160px; */
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+}
+
+/* Links inside the dropdown */
+.dropdown-content a {
+    color: black;
+/*     padding: 12px 16px; */
+    text-decoration: none;
+    display: block;
+}
+
+/* Change color of dropdown links on hover */
+.dropdown-content a:hover {background-color: #f1f1f1}
+
+/* Show the dropdown menu on hover */
+.dropdown:hover .dropdown-content {display: block;}
 

@@ -12,10 +12,14 @@ class Howto(es.DocType):
     keywords = es.String(index='not_analyzed')
     rstTime = es.Date()
     htmlTime = es.Date()
+    markdownTime = es.Date()
     twikiTime = es.Date()
     pdfTime = es.Date()
     rst = es.String(analyzer='snowball')
     html = es.String(index='no')
+    markdown = es.String(index='no')
+    twiki = es.String(index='no')
+    pdf = es.String(index='no')
     chars = es.Integer()
 
     class Meta:

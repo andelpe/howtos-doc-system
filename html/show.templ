@@ -63,9 +63,10 @@
          $("#name").html("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; %(title)s");
       });
    
-   });
+   }); // end of editName.click
 
- }
+ } // end of window.onload
+
 </script>
 
 </head>
@@ -83,12 +84,24 @@
 <td class="whole">
 %(docline)s
 <center> 
- <a href="/cgi-bin/howtos/howtos3.py?id=%(id)s&format=rst">rst</a> &nbsp;&nbsp;&nbsp; 
- <a href="/cgi-bin/howtos/howtos3.py?id=%(id)s&format=twiki">twiki</a> &nbsp;&nbsp;&nbsp;&nbsp; 
- <a href="/cgi-bin/howtos/howtos3.py?id=%(id)s&format=pdf">pdf</a> &nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+ <div class="dropdown">
+   <button>Format</button>
+   <div class="dropdown-content">
+     <a href="/cgi-bin/howtos/howtos3.py?id=%(id)s&format=rst">Rst</a>
+     <a href="/cgi-bin/howtos/howtos3.py?id=%(id)s&format=markdown">Markdown</a>
+     <a href="/cgi-bin/howtos/howtos3.py?id=%(id)s&format=twiki">Twiki</a>
+     <a href="/cgi-bin/howtos/howtos3.py?id=%(id)s&format=pdf">PDF</a>
+   </div>
+ </div> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
  <a href="/cgi-bin/howtos/howtos3.py">Back Home</a>  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp;
- <a href="/cgi-bin/howtos/howtos3.py?id=%(id)s&action=edit"><font color="red">Edit</font></a>  &nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
- <a href="/cgi-bin/howtos/howtos3.py?id=%(id)s&action=remove"><font color="darkred">Remove</font></a>
+ <div class="dropdown">
+   <button onclick="window.location.href='/cgi-bin/howtos/howtos3.py?id=%(id)s&action=edit&format=rst'">Edit</button>
+   <div class="dropdown-content">
+     <a href="/cgi-bin/howtos/howtos3.py?id=%(id)s&action=edit&format=rst">Rst</a>
+     <a href="/cgi-bin/howtos/howtos3.py?id=%(id)s&action=edit&format=markdown">Markdown</a>
+   </div> 
+ </div> &nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+ <button onclick="window.location.href='/cgi-bin/howtos/howtos3.py?id=%(id)s&action=remove'">Remove</button>
 </center>
 </td>
 </tr>
