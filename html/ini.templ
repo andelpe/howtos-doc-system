@@ -39,6 +39,9 @@
  .add{
  background-color: Orange;
  }
+ .howtoLink{
+  text-decoration: none;
+ }
  .smLink{
   font-size: 65%%;
   color: black;
@@ -95,10 +98,14 @@
 
 <td width="45%%" valign="top">
 <form action="howtos3.py" method="post">
-  &nbsp;&nbsp;&nbsp;&nbsp; Name: <input type="text" class="add" name="howtoName" />
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Name: <input type="text" class="add" name="howtoName" />
+  &nbsp; Format:
+  <input type="radio" name="format" value="rst" checked>rst</input>
+  <input type="radio" name="format" value="markdown">markdown</input> 
   <br/>
-  &nbsp;&nbsp; Kwords: <input type="text" class="add" name="keywords" /> (comma-separated)
-  <br/><br/>
+  &nbsp;&nbsp;&nbsp; Kwords: <input type="text" class="add" name="keywords" /> 
+  <br/>(comma-separated)
+  <br/>
   <center>
   <input type="hidden" name="action" value="editNewHowto"/>
   <input type="submit" name="addHowto" class="add" value="Add Howto" />

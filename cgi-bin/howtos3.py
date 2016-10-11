@@ -199,18 +199,21 @@ class howtos(object):
             id = row.meta.id
             if (not id in self.privatePages):
                     mylink = 'href="howtos3.py?id=%s' % id
-                    myovertext = 'kwords: %s' % (' '.join(row.keywords))
+#                    myovertext = 'kwords: %s' % (' '.join(row.keywords))
                     if (cont % 4) == 0: text += '\n<tr>'
                     text += '\n<td>'
-#                    text += '<a %s&format=html">%s</a>' % (mylink, page.split('.rst')[0])
-#                    text += '<a %s&format=html">%s</a>' % (mylink, title)
-                    text += '<span title="%s"><a %s">%s</a></span>' % (myovertext, mylink, title)
+##                    text += '<a %s&format=html">%s</a>' % (mylink, page.split('.rst')[0])
+##                    text += '<a %s&format=html">%s</a>' % (mylink, title)
+#                    text += '<span title="%s"><a %s">%s</a></span>' % (myovertext, mylink, title)
+                    text += '<a class="howtoLink" %s">%s</a></span>' % (mylink, title)
                     text += '&nbsp;&nbsp;&nbsp;<br/>'
-                    text += '<a class="smLink" %s&format=rst">rst</a>, ' % mylink
-                    text += '<a class="smLink" %s&format=twiki">twiki</a>, ' % mylink
-                    text += '<a class="smLink" %s&format=pdf">pdf</a>, ' % mylink
-                    text += '<a class="smLink" %s&action=edit">edit</a>' % mylink
-                    text += '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;</td>'
+                    text += '<span class="smLink">%s</span>' % ' / '.join(row.keywords)
+#                    text += '<a class="smLink" %s&format=rst">rst</a>, ' % mylink
+#                    text += '<a class="smLink" %s&format=twiki">twiki</a>, ' % mylink
+#                    text += '<a class="smLink" %s&format=pdf">pdf</a>, ' % mylink
+#                    text += '<a class="smLink" %s&action=edit">edit</a>' % mylink
+#                    text += '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;</td>'
+                    text += '&nbsp;<br/>&nbsp;</td>'
                     if (cont % 4) == 3: text += '\n</tr>' 
                     cont += 1
         text += '\n</table>'
@@ -423,7 +426,10 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
         """
         Shows an editor page for the specified file name.
         """
-        self.mylog('edit %s, %s' % (id, title))
+        self.mylog('edit %s, %s, %s' % (id, title, format))
+
+        if format != 'markdown':  format = 'rst'
+
         print "Content-type: text/html\n\n"
         if not contents:  contents = getattr(self.getPage(id, format=format), format)
 
