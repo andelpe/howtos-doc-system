@@ -7,7 +7,7 @@
 #       - List common keywords for quick search
 # TODO: Modify docs list presentation (in index/search results)
 #       - Show name but also keywords ?
-# TODO: Support markdown contents for showing and editing!
+
 
 ### IMPORTS ###
 import os, logging, time
@@ -434,7 +434,7 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
         print results
 
 
-    def addHowto(self, name, keywords, contents=None, edit=False):
+    def addHowto(self, name, keywords, contents=None, format='rst', edit=False):
         """
         Add new howto entry. By default, with basic contents.
         """
@@ -455,7 +455,8 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
         id = self.db.newHowto(name, keywords, contents)
 
         if edit:  
-            self.edit(id, name, contents=contents)
+            if format == 'rst':  self.edit(id, name, contents=contents, format=format)
+            else:                self.edit(id, name, format=format)
         else:     
             print "Content-type: application/json\n\n"
             print json.dumps({'id': id})
@@ -599,7 +600,8 @@ elif action == 'addHowto':
     howto.addHowto(howtoName, keywords, contents=contents)
 elif action == 'editNewHowto':
     if not howtoName: howto.output(None)
-    howto.addHowto(howtoName, keywords, edit=True)
+    if format == 'html':  format = 'rst'
+    howto.addHowto(howtoName, keywords, format=format, edit=True)
 elif action == 'changeKwords':
     howto.changeKwords(id, keywords, replace)
 elif action == 'changeName':
