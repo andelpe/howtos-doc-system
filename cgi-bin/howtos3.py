@@ -49,8 +49,7 @@ BASE_CONTENTS = """%(title)s
 .. contents:: Table of Contents
 .. sectnum::
 
-Intro
-======
+
 """
 
 
@@ -122,7 +121,7 @@ class howtos(object):
             if not mypage: return None
 #            self.mylog("MYPAGE: %s" % mypage)
            
-            if format == 'markdown':
+            if format in ('md', 'markdown'):
 
                 # Check if Markdown field is there and is up-to-date. If not, produce it and store it
                 if ('markdown' not in mypage) or ('markdownTime' not in mypage) or (mypage.markdownTime < mypage.rstTime):
@@ -366,7 +365,7 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
                 if   format == "html":      contents = self.showWithMeta(page)
                 elif format == "twiki":     contents = page.twiki
                 elif format == "pdf":       contents = page.pdf
-                elif format == "markdown":  contents = page.markdown
+                elif format in ('md', 'markdown'):  contents = page.markdown
                 else:                       contents = page.rst
 
         # Return the result (encode in UTF-8)
@@ -428,6 +427,7 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
         """
         self.mylog('edit %s, %s, %s' % (id, title, format))
 
+        if format == 'md':  format = 'markdown'
         if format != 'markdown':  format = 'rst'
 
         print "Content-type: text/html\n\n"
@@ -540,7 +540,7 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
         """
         self.mylog('save %s, %s' % (id, format))
 
-        if format == 'markdown':
+        if format in ('md', 'markdown'):
             params = {'markdown': contents, 'markdownTime': datetime.now()}
             out = shell(mdown2rst + ' -', input=contents)
             params.update({'rst': out, 'rstTime': datetime.now()})
