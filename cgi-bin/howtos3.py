@@ -5,9 +5,6 @@
 # TODO: Modify docs index page
 #       - Show recently and oftenly accessed HowTos for quick click
 #       - List common keywords for quick search
-# TODO: Modify docs list presentation (in index/search results)
-#       - Show name but also keywords ?
-
 
 ### IMPORTS ###
 import os, logging, time
@@ -185,14 +182,12 @@ class howtos(object):
 #        return True
 
 
-#    def howtoList(self, titleFilter, kwordFilter, bodyFilter):
     def howtoList(self, rows):
         """
         Return the list of files in the Howto dir
         """
         text = '<table>'
         cont = 0
-#        rows = self.db.filter(names=titleFilter, kwords=kwordFilter, contents=bodyFilter)
         for row in rows:
             title = row.name
             id = row.meta.id
@@ -220,13 +215,11 @@ class howtos(object):
         return text
 
 
-#    def list(self, titleFilter=[], kwordFilter=[], bodyFilter=[]):
     def list(self, rows):
         """
         Produce a json list of matching howtos (returns id, name and kwords only).
         """
         result = []
-#        rows = self.db.filter(names=titleFilter, kwords=kwordFilter, contents=bodyFilter)
         for row in rows:
             result.append({'name': row.name, 'id': row.meta.id, 'kwords': ','.join(row.keywords)})
 
@@ -234,19 +227,17 @@ class howtos(object):
         print json.dumps(result)
 
 
-    def produceIndex(self, rows=None, titleFilter=[], kwordFilter=[], bodyFilter=[]):
+    def produceIndex(self, rows=None, titleFilter=[], kwordFilter=[], bodyFilter=[], filtOp='$or'):
         """
         Produce an index page to look for documents.
         """
+        baseFilt  = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"
+        baseFilt += """<input type="radio" name="filtOp" value="$or"  %s>OR</input>"""  % ('checked' if filtOp!='$and' else '')
+        baseFilt += """&nbsp;<input type="radio" name="filtOp" value="$and" %s>AND</input>""" % ('checked' if filtOp=='$and' else '')
 
-        baseTitle = """&nbsp; &nbsp; 
-Title filter: <input type="text" class="filter" name="titleFilter" value="%s" autofocus="autofocus"/>"""
-        baseKword = """&nbsp; Keyword filter: <input type="text" class="filter" name="kwordFilter" value="%s" />"""
-        baseBody = """&nbsp;Contents filter: <input type="text" class="filter" name="bodyFilter" value="%s" />""" 
+        baseKword = """&nbsp;Title/Kword filter: <input type="text" class="filter" name="kwordFilter" value="%s" />"""
+        baseBody  = """&nbsp;&nbsp;&nbsp; Contents filter: <input type="text" class="filter" name="bodyFilter" value="%s" />""" 
         
-#        f = open(iniTempl)
-#        text = f.read()
-#        f.close()
         with open(iniTempl) as f:
             text = f.read()
 
@@ -256,30 +247,18 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
             mytext  += "<br/>\n&nbsp; &nbsp; ".join([baseText % elem  for elem in mylist])
             return mytext
 
-#        titleText = createText(titleFilter, 'addTitleFilter()', baseTitle)
-#        kwordText = createText(kwordFilter, 'addKwordFilter()', baseKword)
-#        bodyText  = createText(bodyFilter, 'addBodyFilter()', baseBody)
-
-#        titleText = """<input type="button" value="+" onclick="addTitleFilter()" />"""
-#        titleText += "<br/>\n&nbsp; &nbsp; ".join([baseTitle % elem  for elem in titleFilter]) 
-#        kwordText = """<input type="button" value="+" onclick="addKwordFilter()" />"""
-#        kwordText += "<br/>\n&nbsp; &nbsp; ".join([baseKword % elem  for elem in kwordFilter]) 
-#        bodyText = """<input type="button" value="+" onclick="addBodyFilter()" />"""
-#        bodyText += "<br/>\n&nbsp; &nbsp; ".join([baseBody % elem  for elem in bodyFilter]) 
-
-        mylist = self.howtoList(rows) if rows!=None else self.howtoList(titleFilter, kwordFilter, bodyFilter)
+        mylist = self.howtoList(rows) if rows!=None else self.howtoList(self.db.filter(titleFilter, kwordFilter, bodyFilter))
         map = {
-            'titleFilter': createText(titleFilter, 'addTitleFilter()', baseTitle),
             'kwordFilter': createText(kwordFilter, 'addKwordFilter()', baseKword),
             'bodyFilter':  createText(bodyFilter, 'addBodyFilter()', baseBody),
-#            'list': self.howtoList(titleFilter, kwordFilter, bodyFilter),
             'list': self.howtoList(rows),
+            'baseFilt': baseFilt,
         }
 
         return text % map
 
 
-    def output(self, id=None, titleFilter=[], kwordFilter=[], bodyFilter=[], 
+    def output(self, id=None, titleFilter=[], kwordFilter=[], bodyFilter=[], filtOp=None,
                format='html', action='show', direct=False):
         """
         Basic method to display the index page (with appropriate filter) or
@@ -298,10 +277,12 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
         if not bodyFilter:  bodyFilter = []
         elif type(bodyFilter)  != list:   bodyFilter = [bodyFilter]
 
+        if not filtOp:  filtOp = '$or'
+
         # If action was list, return json
         if action == 'list':
             # Get matching docs
-            rows = self.db.filter(names=titleFilter, kwords=kwordFilter, contents=bodyFilter)
+            rows = self.db.filter(names=titleFilter, kwords=kwordFilter, contents=bodyFilter, op=filtOp)
             # Return appropiate json 
             self.list(rows)
 
@@ -309,7 +290,7 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
         elif (not id) or (id == 'index.html'):
 
             # Get matching docs
-            rows = self.db.filter(names=titleFilter, kwords=kwordFilter, contents=bodyFilter)
+            rows = self.db.filter(names=titleFilter, kwords=kwordFilter, contents=bodyFilter, op=filtOp)
 
             # If only one match (and 'direct' flag), show it directly
             if direct and (len(rows) == 1):
@@ -317,7 +298,7 @@ Title filter: <input type="text" class="filter" name="titleFilter" value="%s" au
 
             # Else, produce the page showing the complete list
             else:
-                self.show(contents=self.produceIndex(rows, titleFilter, kwordFilter, bodyFilter))
+                self.show(contents=self.produceIndex(rows, titleFilter, kwordFilter, bodyFilter, filtOp))
 
         # Else, we must show a concrete page
         else:
@@ -587,6 +568,7 @@ if format == None:  format = 'html'
 title  = args.getvalue('titleFilter')
 kword  = args.getvalue('kwordFilter')
 body   = args.getvalue('bodyFilter')
+filtOp  = args.getvalue('filtOp')
 action = args.getvalue('action')
 howtoName = args.getvalue('howtoName')
 #addHowto  = args.getvalue('addHowto')
@@ -620,4 +602,4 @@ elif action == 'remove':
 #    howto.remoteUpdate(page, msg)
 
 else:
-    howto.output(id, title, kword, body, format, action, direct=direct)
+    howto.output(id, title, kword, body, filtOp, format, action, direct=direct)

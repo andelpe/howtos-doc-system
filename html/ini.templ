@@ -8,13 +8,9 @@
 <script>
  function myalert(){  alert("ALERT");  }   
 
- var titleFilter = "&nbsp; &nbsp; &nbsp; &nbsp; Title filter: <input type=\"text\" class=\"filter\" name=\"titleFilter\" value=\"\" />" 
- var kwordFilter = "&nbsp; &nbsp; &nbsp; Keyword filter: <input type=\"text\" class=\"filter\" name=\"kwordFilter\" value=\"\" />" 
- var bodyFilter  = "&nbsp;&nbsp; &nbsp; Contents filter: <input type=\"text\" class=\"filter\" name=\"bodyFilter\" value=\"\" />" 
+ var kwordFilter = "&nbsp; &nbsp;&nbsp; Title/Kword filter: <input type=\"text\" class=\"filter\" name=\"kwordFilter\" value=\"\" />" 
+ var bodyFilter  = "&nbsp; &nbsp; &nbsp; &nbsp; Contents filter: <input type=\"text\" class=\"filter\" name=\"bodyFilter\" value=\"\" />" 
 
- function addTitleFilter() {
-   $("#titleFilter").html($("#titleFilter").html() + "<br/>" + titleFilter);
- }
  function addKwordFilter() {
    $("#kwordFilter").html($("#kwordFilter").html() + "<br/>" + kwordFilter);
  }
@@ -72,10 +68,9 @@
 <td width="40%%">
 <form action="howtos3.py" method="get">
 
-  <span id="titleFilter">
-  %(titleFilter)s
-  </span>
-  <br/> 
+  <center>
+  %(baseFilt)s
+  </center>
 
   <span id="kwordFilter">
   %(kwordFilter)s
@@ -98,6 +93,7 @@
 
 <td width="45%%" valign="top">
 <form action="howtos3.py" method="post">
+  <br/>
   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Name: <input type="text" class="add" name="howtoName" />
   &nbsp; Format:
   <input type="radio" name="format" value="rst" checked>rst</input>

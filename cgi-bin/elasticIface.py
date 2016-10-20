@@ -103,7 +103,7 @@ class ElasticIface(object):
         doc.delete()
 
 
-    def filter(self, names=[], kwords=[], contents=[], op='$and'):
+    def filter(self, names=[], kwords=[], contents=[], op='$or'):
         """ 
         Returns the records matching both the passed name/kword/contents *lists of*
         patterns. 
@@ -114,6 +114,11 @@ class ElasticIface(object):
         If no pattern is set at all, then we return everything. If an incorrect 'op' is
         passed, we raise an exception.
         """     
+        # If no specific title filter was passed and operation is OR, then kwords filter
+        # is applied to titles also
+        if (not names) and kwords and (op == '$or'):  
+            names = kwords
+
         queries = []
 #        for name in names:        queries.append(es.Q('regexp', name='.*'+name+'.*'))
         for name in names:        queries.append(es.Q({'regexp': {'name.raw': '.*'+name+'.*'}}))
