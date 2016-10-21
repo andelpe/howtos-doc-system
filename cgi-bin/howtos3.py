@@ -5,6 +5,17 @@
 # TODO: Modify docs index page
 #       - Show recently and oftenly accessed HowTos for quick click
 #       - List common keywords for quick search
+#
+# TODO: For the TODO above, we'd better maintain a structure of most-accessed Docs
+#       (basically a priority queue) and a similar one for most-accessed keywords (series
+#       of priority queues???)
+#       In this way, we wouldn't need to query self.db.getPopularDocs every time, but just
+#       once, when we start the service... BUT, AGAIN, NO... to do that we need to
+#       implement the server in a different way, not as a simple CGI... that will
+#       calculate everything every time the server is queried... 
+#       Unless we store it in a file (rather than memory) and we just load it from there
+#       (but then we may have contention problems, or we need a lock, etc.)
+
 
 ### IMPORTS ###
 import os, logging, time
@@ -364,8 +375,8 @@ class howtos(object):
 
         # Keywords
         params['kwords'] = ','.join(page.keywords)
-#        params['kwordList'] = '\n'.join(['<li>%s</li>' % x for x in params['kwords']])
-        params['kwordList'] = '\n'.join(['<li>%s</li>' % x for x in page.keywords])
+        klink = '/cgi-bin/howtos/howtos3.py?kwordFilter='
+        params['kwordList'] = '\n'.join(['<li><a href="%s%s">%s</a></li>' % (klink, x, x) for x in page.keywords])
 
         # Metadata
         params['changeTime'] = page.rstTime.strftime('%Y-%m-%d %H:%M')
