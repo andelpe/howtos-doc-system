@@ -70,7 +70,7 @@ BASE_CONTENTS = """%(title)s
 numCommon = 8
 numRecent = 8
 #maxRecent = numRecent**2
-numKwords = 10
+numKwords = 12
 
 ### FUNCTIONS ####
 #def shell(command):
@@ -155,9 +155,16 @@ class howtos(object):
 
     def getCommonKwords(self):
         """
-        Asks redis and retrieves the list of 'numKwords' most recently accesed HowTo docs.
+        Asks redis and retrieves the list of 'numKwords' most accessed keywords. 
         """
         return self.cache.zrevrange('commonKwords', 0, numKwords)
+
+
+    def getRecentKwords(self):
+        """
+        Asks redis and retrieves the list of 'numRecent' most recently accessed keywords.
+        """
+        return self.cache.lrange('recentKwords', 0, numKwords)
 
 
 #    def getPage(self, id, format='html', newAlso=False):
@@ -187,7 +194,6 @@ class howtos(object):
                     self.db.update(mypage.meta.id, {'markdown': out, 'markdownTime': datetime.now()})
                     mypage = self.db.getHowto(id)
 
-
             if format == 'html':
 
                 # Check if HTML field is there and is up-to-date. If not, produce it and store it
@@ -195,7 +201,6 @@ class howtos(object):
                     out = shell(rst2html + ' -', input=mypage.rst.encode('utf-8'))
                     self.db.update(mypage.meta.id, {'html': out, 'htmlTime': datetime.now()})
                     mypage = self.db.getHowto(id)
-
 
             elif format == 'twiki':
 
@@ -217,6 +222,14 @@ class howtos(object):
                     self.db.update(mypage.meta.id, {'pdf': unicode(out, encoding='latin-1'), 'pdfTime': datetime.now()})
                     self.mylog("....After DB update")
                     mypage = self.db.getHowto(id)
+
+
+            # Add the associated keywords to the caches
+            for kword in mypage.keywords:
+                self.cache.lrem('recentKwords', 1, kword)
+                self.cache.lpush('recentKwords', kword)
+                self.cache.ltrim('recentKwords', 0, numRecent)
+                self.cache.zincrby('commonKwords', kword, amount=1)
 
             # All OK
             return mypage
@@ -263,17 +276,19 @@ class howtos(object):
 #                    text += '<span title="%s"><a %s">%s</a></span>' % (myovertext, mylink, title)
                     text += '<a class="howtoLink" %s">%s</a>' % (mylink, title)
                     text += '&nbsp;&nbsp;&nbsp;<br/>'
-                    text += '<span class="smLink">%s</span>' % ' / '.join(row.keywords)
+#                    text += '<span class="smLink">%s</span>' % ' / '.join(row.keywords)
+                    linkList = ['<a class="smLink" href="howtos3.py?kwordFilter=%s">%s</a>' % (x,x) for x in row.keywords]
+                    text += ' &nbsp;'.join(linkList)
 #                    text += '<a class="smLink" %s&format=rst">rst</a>, ' % mylink
 #                    text += '<a class="smLink" %s&format=twiki">twiki</a>, ' % mylink
 #                    text += '<a class="smLink" %s&format=pdf">pdf</a>, ' % mylink
 #                    text += '<a class="smLink" %s&action=edit">edit</a>' % mylink
 #                    text += '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;</td>'
-                    text += '&nbsp;<br/>&nbsp;</td>'
+                    text += '&nbsp;&nbsp;<br/>&nbsp;</td>'
                     if (cont % 4) == 3: text += '\n</tr>' 
                     cont += 1
 #        text += '\n</table>'
-        text += '\n'
+        text += '\n' # <tr><td colspan="4"><hr></td></tr>'
 
         return text
 
@@ -311,14 +326,35 @@ class howtos(object):
             mytext  += "<br/>\n&nbsp; &nbsp; ".join([baseText % elem  for elem in mylist])
             return mytext
 
-        commonList = self.db.getHowtoList(self.getCommonDocs())
-        commonPart = ('<tr><td colspan="4"><hr><span class="mylabel">Common</span></td></tr>%s' % self.howtoList(commonList)) if commonList else ''
 
-        recentList = self.db.getHowtoList(self.getRecentDocs())
-        recentPart = ('<tr><td colspan="4"><hr><span class="mylabel">Recent</span></td></tr>%s' % self.howtoList(recentList)) if recentList else ''
-
+        sectionText = '<tr><td colspan="4"><br/><span class="mylabel">%s</span><hr></td></tr>'
         mainList = self.howtoList(rows) if rows!=None else self.howtoList(self.db.filter(titleFilter, kwordFilter, bodyFilter))
-        mainPart = '<tr><td colspan="4"><hr></td></tr>%s' % mainList
+
+        if not (titleFilter or kwordFilter or bodyFilter):
+
+            mainPart = sectionText % ('All docs') + mainList
+
+            recentPart = sectionText % ('Recently visited')
+            recentList = self.db.getHowtoList(self.getRecentDocs())
+            rKwds = ['<a class="smLink2" href="howtos3.py?kwordFilter=%s">%s</a>' % (x,x) for x in self.getRecentKwords()]
+            if rKwds:
+                recentPart += '<tr><td colspan="4">' + ' &nbsp; '.join(rKwds) + '<br/><hr></td></tr>'
+            if recentList:
+                recentPart += self.howtoList(recentList)
+
+            commonList = self.db.getHowtoList(self.getCommonDocs())
+            commonPart = sectionText % ('Most visited') 
+            cKwds = ['<a class="smLink2" href="howtos3.py?kwordFilter=%s">%s</a>' % (x,x) for x in self.getCommonKwords()]
+            if cKwds:
+                commonPart += '<tr><td colspan="4">' + ' &nbsp; '.join(cKwds) + '<br/><hr></td></tr>'
+            if commonList:
+                commonPart += self.howtoList(commonList)
+
+        else:
+
+            mainPart = sectionText % 'Results' + mainList
+            commonPart = recentPart = ""
+
 
         map = {
             'kwordFilter': createText(kwordFilter, 'addKwordFilter()', baseKword),
@@ -436,7 +472,8 @@ class howtos(object):
 
         # Keywords
         params['kwords'] = ','.join(page.keywords)
-        klink = '/cgi-bin/howtos/howtos3.py?kwordFilter='
+#        klink = '/cgi-bin/howtos/howtos3.py?kwordFilter='
+        klink = 'howtos3.py?kwordFilter='
         params['kwordList'] = '\n'.join(['<li><a href="%s%s">%s</a></li>' % (klink, x, x) for x in page.keywords])
 
         # Metadata

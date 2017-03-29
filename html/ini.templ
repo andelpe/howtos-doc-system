@@ -37,15 +37,25 @@
  }
  .howtoLink{
   text-decoration: none;
+  font-size: 95%%;
  }
  .smLink{
+  text-decoration: none;
   font-size: 65%%;
+  color: black;
+ }
+ .smLink2{
+  text-decoration: none;
+  font-size: 85%%;
   color: black;
  }
  .mylabel{
   text-align: center;
   font-size: 80%%;
   color: red;
+ }
+ tr{
+  line-height: 14px;
  }
  form, input{
   font-family: monospace;
@@ -62,15 +72,14 @@
 
 <BODY>
 
-<br/>
+<center> <input type="button" value="HOME" onclick="location.href='howtos3.py';" /> </center>
 <h1 class="title">HowTo's&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</h1>
-<br/> <br/>
 
 <center>
-<table>
+<table width="100%%">
 
 <tr>
-<td width="40%%">
+<td width="45%%">
 <form action="howtos3.py" method="get">
 
   <center>
@@ -94,30 +103,30 @@
 </form> 
 </td>
 
-<td width="15%%"></td>
+<td width="5%%">
+</td>
 
-<td width="45%%" valign="top">
+<td width="40%%" valign="top">
 <form action="howtos3.py" method="post">
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Format:
+  <input type="radio" name="format" value="rst" checked>rst</input>
+   <input type="radio" name="format" value="markdown">markdown</input> 
   <br/>
   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Name: <input type="text" class="add" name="howtoName" />
-  &nbsp; Format:
-  <input type="radio" name="format" value="rst" checked>rst</input>
-  <input type="radio" name="format" value="markdown">markdown</input> 
   <br/>
   &nbsp;&nbsp;&nbsp; Kwords: <input type="text" class="add" name="keywords" /> 
   <br/>(comma-separated)
   <br/>
-  <center>
   <input type="hidden" name="action" value="editNewHowto"/>
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
   <input type="submit" name="addHowto" class="add" value="Add Howto" />
-  </center>
 </form>
 </td>
 </tr>
 
 <tr>
 <td colspan="3">
-<table>
+<table width="100%%">
 %(recent)s
 %(common)s
 %(list)s

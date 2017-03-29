@@ -21,9 +21,6 @@ class Howto(es.DocType):
     twiki = es.String(index='no')
     pdf = es.String(index='no')
     chars = es.Integer()
-#    # TODO: need to recreate the index with these new 2 fields
-#    nAccess = es.Integer()
-#    lastAccess = es.Date()
 
     class Meta:
         index = indexName
@@ -113,14 +110,6 @@ class ElasticIface(object):
     def deleteHowto(self, id):
         doc = Howto.get(id=id)
         doc.delete()
-
-
-#    def getPopularDocs(self, N=20):
-#        """
-#        Returns the most popular N records order by their 'nAccess' field.
-#        """
-#        # TODO: complete
-#        raise NotImplementedError('do it')
 
 
     def filter(self, names=[], kwords=[], contents=[], op='$or'):
