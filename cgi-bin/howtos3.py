@@ -16,6 +16,12 @@
 #       Unless we store it in a file (rather than memory) and we just load it from there
 #       (but then we may have contention problems, or we need a lock, etc.)
 
+#r = redis.StrictRedis(unix_socket_path='/tmp/redis.sock')
+#r.zadd('prio', howto-bla=3, howto-foo=23)
+###r.zrevrange('prio', 0, 10, withscores=True)
+#r.zrevrange('prio', 0, 10)
+
+
 
 ### IMPORTS ###
 import os, logging, time
@@ -27,6 +33,7 @@ import bson
 from utils import shell, commandError
 from datetime import datetime
 import json
+import redis
 
 
 ### CONSTANTS ####
@@ -60,6 +67,10 @@ BASE_CONTENTS = """%(title)s
 
 """
 
+numCommon = 8
+numRecent = 8
+#maxRecent = numRecent**2
+numKwords = 10
 
 ### FUNCTIONS ####
 #def shell(command):
@@ -91,6 +102,7 @@ class howtos(object):
 
 # TODO: pre-load things is not very effective is the script is called anew each time
 #       We are actually reading files we are often not using...
+#       We should cache their content in redis (just need some way to update them) 
 
         # Pre-load show (html) template
         f = open(showTempl)
@@ -108,12 +120,44 @@ class howtos(object):
         # Connect to mongoDB
         self.db = ElasticIface()
 
+        # Connect to redis also
+        self.cache = redis.StrictRedis(unix_socket_path='/tmp/redis.sock')
+
 
     def mylog(self, msg):
         """
         Log specified message to defined logfile.
         """
         self.mylogf.write('%s %s \n' % (time.strftime('%Y-%m-%d %H:%M:%S'), msg))
+
+
+    def getCommonDocs(self):
+        """
+        Asks redis and retrieves the list of 'numCommon' most accessed HowTo docs.
+        """
+        return self.cache.zrevrange('commonDocs', 0, numCommon-1)
+
+#r.zadd('prio', howto-bla=3, howto-foo=23)
+#r.zincrby('prio', 'howto_bla', amount=2)
+#
+###r.zrevrange('prio', 0, 10, withscores=True)
+#r.zrevrange('prio', 0, 10)
+#
+#r.lpush('lista', i) ; r.ltrim('lista', 0, 5) ; r.lrange('lista', 0, 10)
+
+
+    def getRecentDocs(self):
+        """
+        Asks redis and retrieves the list of 'numRecent' most recently accesed HowTo docs.
+        """
+        return self.cache.lrange('recentDocs', 0, numRecent-1)
+
+
+    def getCommonKwords(self):
+        """
+        Asks redis and retrieves the list of 'numKwords' most recently accesed HowTo docs.
+        """
+        return self.cache.zrevrange('commonKwords', 0, numKwords)
 
 
 #    def getPage(self, id, format='html', newAlso=False):
@@ -128,6 +172,12 @@ class howtos(object):
             mypage = self.db.getHowto(id)
             if not mypage: return None
 #            self.mylog("MYPAGE: %s" % mypage)
+
+            # Add the page to the caches 
+            self.cache.lrem('recentDocs', 1, id)
+            self.cache.lpush('recentDocs', id)
+            self.cache.ltrim('recentDocs', 0, numRecent)
+            self.cache.zincrby('commonDocs', id, amount=1)
            
             if format in ('md', 'markdown'):
 
@@ -197,7 +247,8 @@ class howtos(object):
         """
         Return the list of files in the Howto dir
         """
-        text = '<table>'
+#        text = '<table>'
+        text = ''
         cont = 0
         for row in rows:
             title = row.name
@@ -210,7 +261,7 @@ class howtos(object):
 ##                    text += '<a %s&format=html">%s</a>' % (mylink, page.split('.rst')[0])
 ##                    text += '<a %s&format=html">%s</a>' % (mylink, title)
 #                    text += '<span title="%s"><a %s">%s</a></span>' % (myovertext, mylink, title)
-                    text += '<a class="howtoLink" %s">%s</a></span>' % (mylink, title)
+                    text += '<a class="howtoLink" %s">%s</a>' % (mylink, title)
                     text += '&nbsp;&nbsp;&nbsp;<br/>'
                     text += '<span class="smLink">%s</span>' % ' / '.join(row.keywords)
 #                    text += '<a class="smLink" %s&format=rst">rst</a>, ' % mylink
@@ -221,7 +272,8 @@ class howtos(object):
                     text += '&nbsp;<br/>&nbsp;</td>'
                     if (cont % 4) == 3: text += '\n</tr>' 
                     cont += 1
-        text += '\n</table>'
+#        text += '\n</table>'
+        text += '\n'
 
         return text
 
@@ -249,6 +301,7 @@ class howtos(object):
         baseKword = """&nbsp;Title/Kword filter: <input type="text" class="filter" name="kwordFilter" value="%s" />"""
         baseBody  = """&nbsp;&nbsp;&nbsp; Contents filter: <input type="text" class="filter" name="bodyFilter" value="%s" />""" 
         
+        # TODO: we are reading a file every time... should cache it in Redis somehow
         with open(iniTempl) as f:
             text = f.read()
 
@@ -258,11 +311,19 @@ class howtos(object):
             mytext  += "<br/>\n&nbsp; &nbsp; ".join([baseText % elem  for elem in mylist])
             return mytext
 
-        mylist = self.howtoList(rows) if rows!=None else self.howtoList(self.db.filter(titleFilter, kwordFilter, bodyFilter))
+        commonList = self.db.getHowtoList(self.getCommonDocs())
+        commonPart = ('<tr><td colspan="4"><hr><span class="mylabel">Common</span></td></tr>%s' % self.howtoList(commonList)) if commonList else ''
+
+        recentList = self.db.getHowtoList(self.getRecentDocs())
+        recentPart = ('<tr><td colspan="4"><hr><span class="mylabel">Recent</span></td></tr>%s' % self.howtoList(recentList)) if recentList else ''
+
+        mainList = self.howtoList(rows) if rows!=None else self.howtoList(self.db.filter(titleFilter, kwordFilter, bodyFilter))
+        mainPart = '<tr><td colspan="4"><hr></td></tr>%s' % mainList
+
         map = {
             'kwordFilter': createText(kwordFilter, 'addKwordFilter()', baseKword),
             'bodyFilter':  createText(bodyFilter, 'addBodyFilter()', baseBody),
-            'list': self.howtoList(rows),
+            'common': commonPart, 'recent': recentPart, 'list': mainPart,
             'baseFilt': baseFilt,
         }
 
