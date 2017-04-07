@@ -2,25 +2,10 @@
 
 #from __future__ import division, print_function
 
-# TODO: Modify docs index page
-#       - Show recently and oftenly accessed HowTos for quick click
-#       - List common keywords for quick search
+# We maintain a structure of most-accessed Docs (basically a priority queue) and a similar
+# one for most-accessed keywords (series of priority queues) in Redis.
 #
-# TODO: For the TODO above, we'd better maintain a structure of most-accessed Docs
-#       (basically a priority queue) and a similar one for most-accessed keywords (series
-#       of priority queues???)
-#       In this way, we wouldn't need to query self.db.getPopularDocs every time, but just
-#       once, when we start the service... BUT, AGAIN, NO... to do that we need to
-#       implement the server in a different way, not as a simple CGI... that will
-#       calculate everything every time the server is queried... 
-#       Unless we store it in a file (rather than memory) and we just load it from there
-#       (but then we may have contention problems, or we need a lock, etc.)
-
-#r = redis.StrictRedis(unix_socket_path='/tmp/redis.sock')
-#r.zadd('prio', howto-bla=3, howto-foo=23)
-###r.zrevrange('prio', 0, 10, withscores=True)
-#r.zrevrange('prio', 0, 10)
-
+# In this way, we don't need to query ElasticSearch too much.
 
 
 ### IMPORTS ###
@@ -34,6 +19,7 @@ from utils import shell, commandError
 from datetime import datetime
 import json
 import redis
+from fixcols import fixcols
 
 
 ### CONSTANTS ####
@@ -137,14 +123,6 @@ class howtos(object):
         """
         return self.cache.zrevrange('commonDocs', 0, numCommon-1)
 
-#r.zadd('prio', howto-bla=3, howto-foo=23)
-#r.zincrby('prio', 'howto_bla', amount=2)
-#
-###r.zrevrange('prio', 0, 10, withscores=True)
-#r.zrevrange('prio', 0, 10)
-#
-#r.lpush('lista', i) ; r.ltrim('lista', 0, 5) ; r.lrange('lista', 0, 10)
-
 
     def getRecentDocs(self):
         """
@@ -167,7 +145,6 @@ class howtos(object):
         return self.cache.lrange('recentKwords', 0, numKwords)
 
 
-#    def getPage(self, id, format='html', newAlso=False):
     def getPage(self, id, format='html'):
         """
         Get a Howto and return it as text/html/twiki.
@@ -679,18 +656,21 @@ class howtos(object):
         """
         Query redis for the list of recent/common docs/kwords and return it.
         """
-        # This is quite silly... I should have returned json to start with...
         print "Content-type: text/text\n\n"
 
         if op == 'commonDocs':
-            print '\n'.join(["%s##H##%s" % (x.meta.id, x.name) for x in self.db.getHowtoList(self.getCommonDocs())])
-        elif op == 'recentDocs':
-            print '\n'.join(["%s##H##%s" % (x.meta.id, x.name) for x in self.db.getHowtoList(self.getRecentDocs())])
-        elif op == 'commonKwords':
-            print '\n'.join(self.getCommonKwords())
-        elif op == 'recentKwords':
-            print '\n'.join(self.getRecentKwords())
+            temp = ["%s##H##%s" % (x.meta.id, x.name) for x in self.db.getHowtoList(self.getCommonDocs())]
 
+        elif op == 'recentDocs':
+            temp = ["%s##H##%s" % (x.meta.id, x.name) for x in self.db.getHowtoList(self.getRecentDocs())]
+
+        elif op == 'commonKwords':
+            temp = self.getCommonKwords()
+
+        elif op == 'recentKwords':
+            temp = self.getRecentKwords()
+
+        print '\n'.join(fixcols(temp, params={'delim': '##H##'}))
 
 ### MAIN ### 
 
