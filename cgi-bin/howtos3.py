@@ -330,6 +330,7 @@ class howtos(object):
         sectionText = '<tr><td colspan="4"><br/><span class="mylabel">%s</span><hr></td></tr>'
         mainList = self.howtoList(rows) if rows!=None else self.howtoList(self.db.filter(titleFilter, kwordFilter, bodyFilter))
 
+        commonKwords = self.getCommonKwords()
         if not (titleFilter or kwordFilter or bodyFilter):
 
             mainPart = sectionText % ('All docs') + mainList
@@ -344,7 +345,7 @@ class howtos(object):
 
             commonList = self.db.getHowtoList(self.getCommonDocs())
             commonPart = sectionText % ('Most visited') 
-            cKwds = ['<a class="smLink2" href="howtos3.py?kwordFilter=%s">%s</a>' % (x,x) for x in self.getCommonKwords()]
+            cKwds = ['<a class="smLink2" href="howtos3.py?kwordFilter=%s">%s</a>' % (x,x) for x in commonKwords]
             if cKwds:
                 commonPart += '<tr><td colspan="4">' + ' &nbsp; '.join(cKwds) + '<br/><hr></td></tr>'
             if commonList:
@@ -355,12 +356,15 @@ class howtos(object):
             mainPart = sectionText % 'Results' + mainList
             commonPart = recentPart = ""
 
+        commonKwdOpts = ''
+        for k in commonKwords:
+            commonKwdOpts += '<a onclick="addKword(\'%s\')">%s</a>' % (k, k)
 
         map = {
             'kwordFilter': createText(kwordFilter, 'addKwordFilter()', baseKword),
             'bodyFilter':  createText(bodyFilter, 'addBodyFilter()', baseBody),
             'common': commonPart, 'recent': recentPart, 'list': mainPart,
-            'baseFilt': baseFilt,
+            'baseFilt': baseFilt, 'commonKwords': commonKwdOpts,
         }
 
         return text % map
@@ -507,6 +511,11 @@ class howtos(object):
                 break
         params['most'] = '\n'.join(part)
 
+        commonKwdOpts = ''
+        for k in self.getCommonKwords():
+            commonKwdOpts += '<a onclick=\\"addKword(\'%s\')\\">%s</a>' % (k, k)
+        params['commonKwords'] = commonKwdOpts
+
         # Output results
         return self.showTempl % params
 
@@ -545,7 +554,7 @@ class howtos(object):
             return 400
 
         sub = '*' * (len(name)+1)
-        keywords = keywords.split(',')
+        keywords = keywords.strip().strip(',').split(',')
         if not contents:  contents = BASE_CONTENTS % ({'title': name, 'sub': sub})
 
         id = self.db.newHowto(name, keywords, contents)
@@ -581,7 +590,7 @@ class howtos(object):
     def changeKwords(self, ids, keywords, replace='yes'):
         self.mylog('changeKwords %s, replace: %s' % (ids, replace))
 
-        newKwds = keywords.split(',')
+        newKwds = keywords.strip().strip(',').split(',')
 
         if type(ids) != list:  
 

@@ -28,8 +28,14 @@
           <input type=\"hidden\" name=\"id\" value=\"%(id)s\"/>\
           <input type=\"hidden\" name=\"replace\" value=\"yes\"/>\
           <input type=\"hidden\" name=\"action\" value=\"changeKwords\"/>\
-          Kwords: <input type=\"text\" class=\"add\" name=\"keywords\" value=\"%(kwords)s\"/>\
-          <br/>(comma-separated)<br/> \
+          Kwords: <input type=\"text\" class=\"add\" id=\"newkwords\" name=\"keywords\" value=\"%(kwords)s\"/>\
+          <br/>(comma-separated) \
+          <div class=\"dropdown\">\
+            <button onclick=\"return false;\">+</button>\
+            <div class=\"dropdown-content\">\
+               %(commonKwords)s\
+            </div>\
+          </div>\
           <center>\
           <input type=\"button\" id=\"cancelEditKwords\" class=\"add\" value=\"Cancel\" />\
           <input type=\"submit\" name=\"changeKwords\" class=\"add\" value=\"Save\" />\
@@ -67,6 +73,9 @@
 
  } // end of window.onload
 
+ function addKword(value){
+   $("#newkwords").val(value + ',' + $("#newkwords").val());
+ }
 </script>
 
 </head>
