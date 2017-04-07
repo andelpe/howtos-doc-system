@@ -675,6 +675,23 @@ class howtos(object):
 #            print "ERROR when remote-updating %s: %s" % (pageName, ex)
 
 
+    def getFrecList(self, op):
+        """
+        Query redis for the list of recent/common docs/kwords and return it.
+        """
+        # This is quite silly... I should have returned json to start with...
+        print "Content-type: text/text\n\n"
+
+        if op == 'commonDocs':
+            print '\n'.join(["%s##H##%s" % (x.meta.id, x.name) for x in self.db.getHowtoList(self.getCommonDocs())])
+        elif op == 'recentDocs':
+            print '\n'.join(["%s##H##%s" % (x.meta.id, x.name) for x in self.db.getHowtoList(self.getRecentDocs())])
+        elif op == 'commonKwords':
+            print '\n'.join(self.getCommonKwords())
+        elif op == 'recentKwords':
+            print '\n'.join(self.getRecentKwords())
+
+
 ### MAIN ### 
 
 # Get cgi values
@@ -716,6 +733,8 @@ elif action == 'save':
     howto.save(id, contents, format)
 elif action == 'remove':
     howto.removeHowtos(id)
+elif action == 'getFrecList':
+    howto.getFrecList(filtOp)
 #elif action == 'remoteUpdate':
 #    howto.remoteUpdate(page, msg)
 
