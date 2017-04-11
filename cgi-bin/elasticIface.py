@@ -90,7 +90,10 @@ class ElasticIface(object):
 
         res = []
         for id in idList:
-            res.append(Howto.get(id=id))
+            try:
+                res.append(Howto.get(id=id))
+            except:
+                pass
 
         return res
 

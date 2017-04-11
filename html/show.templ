@@ -6,7 +6,7 @@
    $("#removeLink").click(function(){
      if (confirm("Are you sure you want to delete this Howto?.")){
        // go to delete URL
-       location.href="/cgi-bin/howtos/howtos3.py?id=%(id)s&action=remove";
+       location.href="/cgi-bin/howtos/howtos.py?id=%(id)s&action=remove";
      } 
      else{
        // just stay
@@ -24,7 +24,7 @@
 
    $("#editKwords").click(function(){
       $("#keywords").html("\
-        <form action=\"howtos3.py\" method=\"post\">\
+        <form action=\"howtos.py\" method=\"post\">\
           <input type=\"hidden\" name=\"id\" value=\"%(id)s\"/>\
           <input type=\"hidden\" name=\"replace\" value=\"yes\"/>\
           <input type=\"hidden\" name=\"action\" value=\"changeKwords\"/>\
@@ -45,14 +45,14 @@
       ) ;
 
       $("#cancelEditKwords").click(function(){
-         location.href="/cgi-bin/howtos/howtos3.py?id=%(id)s";
+         location.href="/cgi-bin/howtos/howtos.py?id=%(id)s";
       });
    
    });
 
    $("#editName").click(function(){
       $("#name").html("\
-        <form action=\"howtos3.py\" method=\"post\">\
+        <form action=\"howtos.py\" method=\"post\">\
           <input type=\"hidden\" name=\"id\" value=\"%(id)s\"/>\
           <input type=\"hidden\" name=\"action\" value=\"changeName\"/>\
           Name: <input type=\"text\" class=\"add\" name=\"name\" value=\"%(title)s\"/>\
@@ -96,21 +96,21 @@
  <div class="dropdown">
    <button>Format</button>
    <div class="dropdown-content">
-     <a href="/cgi-bin/howtos/howtos3.py?id=%(id)s&format=rst">Rst</a>
-     <a href="/cgi-bin/howtos/howtos3.py?id=%(id)s&format=markdown">Markdown</a>
-     <a href="/cgi-bin/howtos/howtos3.py?id=%(id)s&format=twiki">Twiki</a>
-     <a href="/cgi-bin/howtos/howtos3.py?id=%(id)s&format=pdf">PDF</a>
+     <a href="/cgi-bin/howtos/howtos.py?id=%(id)s&format=rst">Rst</a>
+     <a href="/cgi-bin/howtos/howtos.py?id=%(id)s&format=markdown">Markdown</a>
+     <a href="/cgi-bin/howtos/howtos.py?id=%(id)s&format=twiki">Twiki</a>
+     <a href="/cgi-bin/howtos/howtos.py?id=%(id)s&format=pdf">PDF</a>
    </div>
  </div> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
- <a href="/cgi-bin/howtos/howtos3.py">Back Home</a>  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp;
+ <a href="/cgi-bin/howtos/howtos.py">Back Home</a>  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp;
  <div class="dropdown">
-   <button onclick="window.location.href='/cgi-bin/howtos/howtos3.py?id=%(id)s&action=edit&format=rst'">Edit</button>
+   <button onclick="window.location.href='/cgi-bin/howtos/howtos.py?id=%(id)s&action=edit&format=rst'">Edit</button>
    <div class="dropdown-content">
-     <a href="/cgi-bin/howtos/howtos3.py?id=%(id)s&action=edit&format=rst">Rst</a>
-     <a href="/cgi-bin/howtos/howtos3.py?id=%(id)s&action=edit&format=markdown">Markdown</a>
+     <a href="/cgi-bin/howtos/howtos.py?id=%(id)s&action=edit&format=rst">Rst</a>
+     <a href="/cgi-bin/howtos/howtos.py?id=%(id)s&action=edit&format=markdown">Markdown</a>
    </div> 
  </div> &nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
- <button onclick="window.location.href='/cgi-bin/howtos/howtos3.py?id=%(id)s&action=remove'">Remove</button>
+ <button onclick="window.location.href='/cgi-bin/howtos/howtos.py?id=%(id)s&action=remove'">Remove</button>
 </center>
 </td>
 </tr>
