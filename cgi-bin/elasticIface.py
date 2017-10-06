@@ -21,6 +21,8 @@ class Howto(es.DocType):
     twiki = es.String(index='no')
     pdf = es.String(index='no')
     chars = es.Integer()
+    creator = es.String()
+    lastUpdater = es.String()
 
     class Meta:
         index = indexName
@@ -56,8 +58,8 @@ class ElasticIface(object):
         self.created = True
 
 
-    def newHowto(self, name, keywords, rst):
-        howto = Howto(name=name, keywords=keywords, rst=rst)
+    def newHowto(self, name, keywords, rst, author=None):
+        howto = Howto(name=name, keywords=keywords, rst=rst, creator=author, lastUpdater=author)
         howto.save()
         return howto.meta.id
 
@@ -173,12 +175,18 @@ class ElasticIface(object):
         return self.filter(contents=[pattern])
 
 
-    def update(self, id, changes):
+    def update(self, id, changes, version=None):
         """
         Updates record with specified 'id' by applying specified 'changes' (dict with
         modified fields).
+
+        If 'version' is specified, then ES will complain if the DB version is higher than 
+        that supplied and the operation will fail.
         """
         howto = Howto.get(id=id)
+
+        if version:  howto.meta.version = version
+
         howto.update(**changes)
 
 

@@ -8,6 +8,11 @@
 # In this way, we don't need to query ElasticSearch too much.
 
 
+#
+# TODO: support the version checking in web edition also?
+#       It's not easy, because we may save many times in the web, each will have a new version num!
+#
+
 ### IMPORTS ###
 import os, logging, time
 import re
@@ -39,7 +44,7 @@ rst2html = CGIDIR + '/txt2html/command2.sh'
 rst2twiki = CGIDIR + '/rst2twiki'
 rst2mdown = CGIDIR + '/rst2mdown'
 mdown2rst = CGIDIR + '/mdown2rst'
-rst2pdf = CGIDIR + '/txt2pdf/command2.sh'
+rst2pdf = CGIDIR + '/txt2pdf/command3.sh'
 
 ERROR_PAGE = os.path.join(BASEDIR, 'error.html')
 EXISTING_PAGE = os.path.join(BASEDIR, 'existing.html')
@@ -59,18 +64,6 @@ numRecent = 8
 numKwords = 12
 
 ### FUNCTIONS ####
-#def shell(command):
-#    """
-#    Runs the specified command (string) in a shell and returns the output 
-#    of the command (stdout and stderr together with 2>&1) and its exit code
-#    in a list like:
-#       [output, exitcode]
-#    """
-#    p = sub.Popen(command + ' 2>&1', shell = True, stdout=sub.PIPE)
-#    p.wait()
-#    res = p.communicate()
-#    res = [res[0], p.returncode]
-#    return res
 
 
 ### CLASSES ###
@@ -86,19 +79,8 @@ class howtos(object):
         f.close()
         self.privatePages = [x.strip() for x in lines]
 
-# TODO: pre-load things is not very effective is the script is called anew each time
-#       We are actually reading files we are often not using...
-#       We should cache their content in redis (just need some way to update them) 
-
-        # Pre-load show (html) template
-        f = open(showTempl)
-        self.showTempl = f.read()
-        f.close()
-
-        # Pre-load edit template
-        f = open(editTempl)
-        self.editTempl = f.read()
-        f.close()
+# Pre-loading things is not very effective is the script is called anew each time
+# We were actually reading files we were often not using...
 
         # Prepare logfile
         self.mylogf = open(logfile, 'a')
@@ -108,6 +90,17 @@ class howtos(object):
 
         # Connect to redis also
         self.cache = redis.StrictRedis(unix_socket_path='/tmp/redis.sock')
+
+
+    def loadFile(self, fname):
+        """
+        Get contents of indicated template file either from disk or some cache.
+        """
+        # TODO: Cache files content in redis: need some way to update/evict them and fall
+        #       back to disk when cached version is not present/old
+        with open(fname) as f:
+            text = f.read()
+        return text
 
 
     def mylog(self, msg):
@@ -192,10 +185,11 @@ class howtos(object):
 
                 # Check if PDF field is there and is up-to-date. If not, produce it and store it
                 if ('pdf' not in mypage) or ('pdfTime' not in mypage) or (mypage.pdfTime < mypage.rstTime):
-                    # We encode in latin-1 for PDF production
-                    out = shell(rst2pdf + ' -', input=mypage.rst.encode('latin-1'))
-                    # When storing in the DB, we need to explicitely convert to unicode to
-                    # indicate that latin-1 should be used to decode
+                    out = shell(rst2pdf + ' -', input=mypage.rst.encode('utf-8'))
+                    self.mylog("PDF produced: %s" % mypage.name)
+                    # Apparently PDF is produced in latin-1, so it's easier to store it in DB in latin-1
+                    # (otherwise failures happen...). When storing in the DB, we explicitely 
+                    # convert to unicode to indicate that latin-1 should be used to decode
                     self.db.update(mypage.meta.id, {'pdf': unicode(out, encoding='latin-1'), 'pdfTime': datetime.now()})
                     self.mylog("....After DB update")
                     mypage = self.db.getHowto(id)
@@ -217,27 +211,10 @@ class howtos(object):
             return None
 
 
-#    def checkBodyFilter(self, filter, page):
-#        """
-#        """
-#        if not filter: return True
-#
-#        fname = os.path.join(howtoDir, page)
-#        f = open(fname)
-#        text = f.read()
-#        f.close()
-#
-#        for elem in filter:
-#            if elem and (not re.search(elem, text)): return False
-#
-#        return True
-
-
     def howtoList(self, rows):
         """
-        Return the list of files in the Howto dir
+        Return HTML lines for the specified list howto docs.
         """
-#        text = '<table>'
         text = ''
         cont = 0
         for row in rows:
@@ -245,38 +222,37 @@ class howtos(object):
             id = row.meta.id
             if (not id in self.privatePages):
                     mylink = 'href="howtos.py?id=%s' % id
-#                    myovertext = 'kwords: %s' % (' '.join(row.keywords))
                     if (cont % 4) == 0: text += '\n<tr>'
                     text += '\n<td>'
-##                    text += '<a %s&format=html">%s</a>' % (mylink, page.split('.rst')[0])
-##                    text += '<a %s&format=html">%s</a>' % (mylink, title)
-#                    text += '<span title="%s"><a %s">%s</a></span>' % (myovertext, mylink, title)
                     text += '<a class="howtoLink" %s">%s</a>' % (mylink, title)
                     text += '&nbsp;&nbsp;&nbsp;<br/>'
-#                    text += '<span class="smLink">%s</span>' % ' / '.join(row.keywords)
                     linkList = ['<a class="smLink" href="howtos.py?kwordFilter=%s">%s</a>' % (x,x) for x in row.keywords]
                     text += ' &nbsp;'.join(linkList)
-#                    text += '<a class="smLink" %s&format=rst">rst</a>, ' % mylink
-#                    text += '<a class="smLink" %s&format=twiki">twiki</a>, ' % mylink
-#                    text += '<a class="smLink" %s&format=pdf">pdf</a>, ' % mylink
-#                    text += '<a class="smLink" %s&action=edit">edit</a>' % mylink
-#                    text += '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;</td>'
                     text += '&nbsp;&nbsp;<br/>&nbsp;</td>'
                     if (cont % 4) == 3: text += '\n</tr>' 
                     cont += 1
-#        text += '\n</table>'
         text += '\n' # <tr><td colspan="4"><hr></td></tr>'
 
         return text
 
 
-    def list(self, rows):
+    def list(self, rows, longl=False):
         """
         Produce a json list of matching howtos (returns id, name and kwords only).
         """
         result = []
         for row in rows:
-            result.append({'name': row.name, 'id': row.meta.id, 'kwords': ','.join(row.keywords)})
+            elem = {'name': row.name, 'id': row.meta.id, 'kwords': ','.join(row.keywords)}
+            if longl: 
+                mypage = self.db.getHowto(row.meta.id)
+                elem['version'] = mypage._version
+                elem['creator'] = mypage.creator
+                elem['lastUpdater'] = mypage.lastUpdater
+                elem['rstTime'] = mypage.rstTime.strftime('%Y-%m-%d %H:%M')
+            result.append(elem)
+
+            # Note: it seems that listed doc do not include version info, so we cannot use the following 
+#            result.append({'name': row.name, 'id': row.meta.id, 'kwords': ','.join(row.keywords), 'version': row._version})
 
         print "Content-type: application/json\n" 
         print json.dumps(result)
@@ -293,9 +269,7 @@ class howtos(object):
         baseKword = """&nbsp;Title/Kword filter: <input type="text" class="filter" name="kwordFilter" value="%s" />"""
         baseBody  = """&nbsp;&nbsp;&nbsp; Contents filter: <input type="text" class="filter" name="bodyFilter" value="%s" />""" 
         
-        # TODO: we are reading a file every time... should cache it in Redis somehow
-        with open(iniTempl) as f:
-            text = f.read()
+        text = self.loadFile(iniTempl)
 
         def createText(mylist, buttonText, baseText):
             if not mylist:  mylist = [""]
@@ -348,7 +322,7 @@ class howtos(object):
 
 
     def output(self, id=None, titleFilter=[], kwordFilter=[], bodyFilter=[], filtOp=None,
-               format='html', action='show', direct=False):
+               format='html', action='show', direct=False, longl=False):
         """
         Basic method to display the index page (with appropriate filter) or
         a howto page in the specified format, or the edition page, or even a 
@@ -370,10 +344,12 @@ class howtos(object):
 
         # If action was list, return json
         if action == 'list':
+
             # Get matching docs
             rows = self.db.filter(names=titleFilter, kwords=kwordFilter, contents=bodyFilter, op=filtOp)
+
             # Return appropiate json 
-            self.list(rows)
+            self.list(rows, longl=longl)
 
         # If no id is given, filter the DB
         elif (not id) or (id == 'index.html'):
@@ -392,23 +368,18 @@ class howtos(object):
         # Else, we must show a concrete page
         else:
 
-#            if action == 'edit':  format = 'rst'
             mypage = self.getPage(id, format)
 
             if not mypage: 
-#                self.show(fname=ERROR_PAGE, contentsType="text/html")
                 self.show(fname=ERROR_PAGE, format=format)
                 return 5
 
             if action == 'edit':
                 self.edit(id, title=mypage.name, format=format)
             else:
-#                mytype="text/plain"
-#                if format == 'html':  mytype="text/html"
                 self.show(mypage, format=format, title=mypage.name)
 
 
-#    def show(self, page=None, contents=None, fname=None, contentsType="text/html", title=""):
     def show(self, page=None, contents=None, fname=None, format="html", title=""):
         """
         Show contents of the specified file on stdout. Depending on the type of contents,
@@ -419,17 +390,27 @@ class howtos(object):
         text... but I don't like that, if people wants to just download the raw text).
         """
 
-        if format == 'html':   contentsType = "text/html"
-        elif format == 'pdf':  contentsType = "application/pdf"
-        else:                  contentsType = "text/plain"
+        if format == 'html':   
+            contentsType = "text/html"
 
-        print "Content-type: %s\n" % contentsType
+        elif format == 'pdf':  
+            contentsType = "application/pdf"
+            pname = fname if fname else page.name
+            print 'Content-Disposition: filename="%s.pdf"' % pname.replace(' ', '_')
+
+        else:                  
+            contentsType = "text/plain"
+
+        print "Content-type: %s" % contentsType
         if not contents:
             if fname:
                 f = open(fname)
                 contents = f.read()
                 f.close()
             elif page:
+                print "CIEMAT_howtos_version: %s" % page._version
+                print "CIEMAT_howtos_rstTime: %s" % page.rstTime
+                print "CIEMAT_howtos_id: %s" % page.meta.id
                 # Here we read from Elastic, and we get Unicode type!
                 # Thus, when showing (below) we need to encode before printing
                 if   format == "html":      contents = self.showWithMeta(page)
@@ -439,6 +420,7 @@ class howtos(object):
                 else:                       contents = page.rst
 
         # Return the result (encode in UTF-8)
+        print
         if format == 'pdf':  print contents.encode('latin-1')
         else:                print contents.encode('utf-8')
 
@@ -453,7 +435,6 @@ class howtos(object):
 
         # Keywords
         params['kwords'] = ','.join(page.keywords)
-#        klink = '/cgi-bin/howtos/howtos.py?kwordFilter='
         klink = 'howtos.py?kwordFilter='
         params['kwordList'] = '\n'.join(['<li><a href="%s%s">%s</a></li>' % (klink, x, x) for x in page.keywords])
 
@@ -462,6 +443,10 @@ class howtos(object):
         params['htmlTime']  = page.htmlTime.strftime('%Y-%m-%d %H:%M')
         params['rstSize'] = len(page.rst)
         if page.html:  params['htmlSize'] = len(page.html)
+        params['version'] = page._version
+        params['creator'] = page.creator
+        params['lastUpdater'] = page.lastUpdater
+
 
         # Contents
         lines = page['html'].split('\n')
@@ -494,7 +479,8 @@ class howtos(object):
         params['commonKwords'] = commonKwdOpts
 
         # Output results
-        return self.showTempl % params
+        return self.loadFile(showTempl) % params
+
 
 
     def edit(self, id, title='', contents='', format='rst'):
@@ -506,19 +492,21 @@ class howtos(object):
         if format == 'md':  format = 'markdown'
         if format != 'markdown':  format = 'rst'
 
-        print "Content-type: text/html\n\n"
+        print "Content-type: text/html\n"
         if not contents:  contents = getattr(self.getPage(id, format=format), format)
 
         params = {'contents': contents, 'title': title, 'id': id, 'format': format}
-        results = self.editTempl % params
+        results = self.loadFile(editTempl) % params
         results = results.encode('UTF-8')
 
         print results
 
 
-    def addHowto(self, name, keywords, contents=None, format='rst', edit=False):
+    def addHowto(self, name, keywords, contents=None, format='rst', edit=False, author=None):
         """
         Add new howto entry. By default, with basic contents.
+
+        If 'author' is specified, it'll be stored in DB as creator and last updater of the doc.
         """
         self.mylog('add -- %s -- %s' % (name, keywords))
         page = self.db.getHowtoByName(name)
@@ -527,20 +515,20 @@ class howtos(object):
         if page:
             self.mylog('existing page -- %s' % (page.name))
             if edit:  self.show(fname=EXISTING_PAGE)
-            else:     print("Status: 400 Bad Request -- Page exists already\n\n")
+            else:     print("Status: 400 Bad Request -- Page exists already\n")
             return 400
 
         sub = '*' * (len(name)+1)
         keywords = keywords.strip().strip(',').split(',')
         if not contents:  contents = BASE_CONTENTS % ({'title': name, 'sub': sub})
 
-        id = self.db.newHowto(name, keywords, contents)
+        id = self.db.newHowto(name, keywords, contents, author=author)
 
         if edit:  
             if format == 'rst':  self.edit(id, name, contents=contents, format=format)
             else:                self.edit(id, name, format=format)
         else:     
-            print "Content-type: application/json\n\n"
+            print "Content-type: application/json\n"
             print json.dumps({'id': id})
 
     
@@ -556,11 +544,8 @@ class howtos(object):
             names.append(self.db.getHowto(id).name + ('  (%s)' % id))
             self.db.deleteHowto(id)
 
-        f = open(delTempl)
-        out = f.read()
-        f.close()
-
-        print "Content-type: text/html\n\n"
+        out = self.loadFile(delTempl)
+        print "Content-type: text/html\n"
         print out % {'hlist': '\n<br/>'.join(names)}
 
 
@@ -592,29 +577,47 @@ class howtos(object):
             self.db.update(id, {'keywords': kwdList})
             names.append(doc.name + ('  (%s)' % id))
 
-            f = open(updateKTempl)
-            out = f.read()
-            f.close()
-
-            print "Content-type: text/html\n\n"
+            out = self.loadFile(updateKTempl)
+            print "Content-type: text/html\n"
             print out % {'hlist': '\n<br/>'.join(names)}
 
 
     def changeName(self, id, name):
         self.mylog('changeName %s %s' % (id, name))
-#        self.db.update(id, {'name': name, 'rstTime': datetime.now()})
         self.db.update(id, {'name': name})
         self.output(id)
 
 
-    def save(self, id, contents, format="rst"):
+    def changeCreator(self, ids, author):
+
+        self.mylog('changeCreator %s %s' % (ids, author))
+
+        if type(ids) != list:  
+            self.db.update(ids, {'creator': author})
+            self.output(ids)
+
+        else:
+            for id in ids:
+                self.db.update(id, {'creator': author})
+
+            out = self.loadFile(updateKTempl)
+            print "Content-type: text/html\n"
+            print out % {'hlist': '\n<br/>'.join(ids)}
+
+
+    def save(self, id, contents, format="rst", version=None, author=None):
         """
         Save the passed contents on the specified page (if must have been created
         beforehand). The format must be either 'rst' (default) or 'markdown'. If the
         second is used, an automatic translation to 'rst' is performed (since this is the
         authoritative source for everything else) and DB is updated with both.
+
+        If 'version' is specified, then ES will check if we are updating that version, 
+        and not an older one (in which case, an error is returned).
+
+        If 'author' is specified, it will be stored in the DB as last updater of the doc.
         """
-        self.mylog('save %s, %s' % (id, format))
+        self.mylog('save id=%s, fmt=%s, vers=%s, author=%s' % (id, format, version, author))
 
         if format in ('md', 'markdown'):
             params = {'markdown': contents, 'markdownTime': datetime.now()}
@@ -623,40 +626,27 @@ class howtos(object):
         else:
             params = {'rst': contents, 'rstTime': datetime.now()}
 
+        if author:  params['lastUpdater'] = author
+
         try:
-            self.db.update(id, params)
-            print "Content-type: text/html\n\n"
+#            self.mylog('save params = %s' % (params.keys()))
+            self.db.update(id, params, version)
+            print "Content-type: text/html\n"
             print "OK"
         except Exception, ex:
-            print "Content-type: text/html\n\n"
+            print "Status: 409 Conflict"
+            print "Content-type: text/html\n"
             print "ERROR when saving %s: %s" % (id, ex)
 #        else:
 #            print "Content-type: text/html\n\n"
 #            print "ERROR when saving %s: can't find page" % (pageName)
 
 
-#    # TODO: uses of this should basically be replaced by 'save'
-#    def remoteUpdate(self, pageName, msg="Update"):
-#        """
-#        Commit update page into mercurial repo.
-#        """
-#        self.mylog('remoteUpdate %s' % pageName)
-#
-#        os.chdir(howtoDir)
-#        try:
-##            out = shell("hg ci -A -u howtos.py -m 'Remote - %s' %s" % (msg, pageName))
-#            print "Content-type: text/html\n\n"
-#            print "OK"
-#        except commandError, ex: 
-#            print "Content-type: text/html\n\n"
-#            print "ERROR when remote-updating %s: %s" % (pageName, ex)
-
-
     def getFrecList(self, op):
         """
         Query redis for the list of recent/common docs/kwords and return it.
         """
-        print "Content-type: text/text\n\n"
+        print "Content-type: text/text\n"
 
         if op == 'commonDocs':
             temp = ["%s##H##%s" % (x.meta.id, x.name) for x in self.db.getHowtoList(self.getCommonDocs())]
@@ -694,13 +684,16 @@ replace = args.getvalue('replace')
 contents = args.getvalue('contents')
 direct = args.getvalue('direct')
 link = args.getvalue('link')
+version = args.getvalue('version')
+author = args.getvalue('author')
+longl = args.getvalue('longl')
 
 # Run the main method that returns the html result
 howto = howtos()
 if link:
     howto.output(titleFilter=link, direct=True)
 elif action == 'addHowto':
-    howto.addHowto(howtoName, keywords, contents=contents)
+    howto.addHowto(howtoName, keywords, contents=contents, author=author)
 elif action == 'editNewHowto':
     if not howtoName: howto.output(None)
     if format == 'html':  format = 'rst'
@@ -709,14 +702,14 @@ elif action == 'changeKwords':
     howto.changeKwords(id, keywords, replace)
 elif action == 'changeName':
     howto.changeName(id, name)
+elif action == 'changeCreator':
+    howto.changeCreator(id, author)
 elif action == 'save':
-    howto.save(id, contents, format)
+    howto.save(id, contents, format, version=version, author=author)
 elif action == 'remove':
     howto.removeHowtos(id)
 elif action == 'getFrecList':
     howto.getFrecList(filtOp)
-#elif action == 'remoteUpdate':
-#    howto.remoteUpdate(page, msg)
 
 else:
-    howto.output(id, title, kword, body, filtOp, format, action, direct=direct)
+    howto.output(id, title, kword, body, filtOp, format, action, direct=direct, longl=longl)
