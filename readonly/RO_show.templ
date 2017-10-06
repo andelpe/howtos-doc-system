@@ -1,0 +1,73 @@
+%(pre)s
+
+<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.3/jquery.min.js"></script>
+
+</head>
+<body>
+
+<table class="whole" style="table-layout: fixed; width: 100%%;">
+
+<!-- This colgroup things defines the widths for body and attribs later -->
+<colgroup>
+  <col style="width: auto;">
+  <col style="width: 8cm;">
+</colgroup>
+
+<tr class="whole">
+<td class="whole">
+%(docline)s
+<center> 
+ <div class="dropdown">
+   <button>Format</button>
+   <div class="dropdown-content">
+     <a href="/cgi-bin/howtos/readonly/howtos.py?id=%(id)s&format=rst">Rst</a>
+     <a href="/cgi-bin/howtos/readonly/howtos.py?id=%(id)s&format=markdown">Markdown</a>
+     <a href="/cgi-bin/howtos/readonly/howtos.py?id=%(id)s&format=twiki">Twiki</a>
+     <a href="/cgi-bin/howtos/readonly/howtos.py?id=%(id)s&format=pdf">PDF</a>
+   </div>
+ </div> &emsp; &emsp; 
+ <a href="/cgi-bin/howtos/readonly/howtos.py">Back Home</a> &emsp; &emsp;
+</center>
+</td>
+</tr>
+
+<tr class="whole">
+<td class="whole">
+
+%(most)s
+
+</td>
+
+<td class="meta">
+<p class="topic-title first">&nbsp; Name: 
+<div id="name"> 
+&emsp; &emsp;  %(title)s
+</div>
+<p class="topic-title first">&nbsp; Keywords: 
+<div id="keywords"> 
+<ul>
+%(kwordList)s
+<!--<li>some keyword here</li>-->
+</ul>
+</div>
+<p class="topic-title first">&nbsp; Attributes:</p>
+<ul>
+<li>Id: &nbsp;%(id)s</li>
+<li>Version: &nbsp;%(version)s</li>
+<div id="creator"> 
+<li>Creator: &nbsp;%(creator)s 
+</div>
+<li>Last updater: &nbsp;%(lastUpdater)s</li>
+<br/>
+<li>Change time: &nbsp;%(changeTime)s</li>
+<li>HTML time: &nbsp;%(htmlTime)s</li>
+<li>ReST size: &nbsp;%(rstSize)s chars</li>
+<li>HTML size: &nbsp;%(htmlSize)s chars</li>
+</ul>
+</td>
+
+</tr>
+</table>
+
+</body>
+</html>
