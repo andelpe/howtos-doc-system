@@ -408,7 +408,8 @@ class howtos(object):
                 contents = f.read()
                 f.close()
             elif page:
-                print "CIEMAT_howtos_version: %s" % page._version
+                if '_version' in page: 
+                    print "CIEMAT_howtos_version: %s" % page._version
                 print "CIEMAT_howtos_rstTime: %s" % page.rstTime
                 print "CIEMAT_howtos_id: %s" % page.meta.id
                 # Here we read from Elastic, and we get Unicode type!
@@ -422,7 +423,11 @@ class howtos(object):
         # Return the result (encode in UTF-8)
         print
         if format == 'pdf':  print contents.encode('latin-1')
-        else:                print contents.encode('utf-8')
+        else:                
+            try:
+                print contents.encode('utf-8')
+            except UnicodeDecodeError as inst:
+                print contents.encode('latin-1')
 
 
     def showWithMeta(self, page):
@@ -443,7 +448,8 @@ class howtos(object):
         params['htmlTime']  = page.htmlTime.strftime('%Y-%m-%d %H:%M')
         params['rstSize'] = len(page.rst)
         if page.html:  params['htmlSize'] = len(page.html)
-        params['version'] = page._version
+        if '_version' in page: params['version'] = page._version
+        else:                  params['version'] = ''
         params['creator'] = page.creator
         params['lastUpdater'] = page.lastUpdater
 
