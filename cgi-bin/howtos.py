@@ -408,7 +408,7 @@ class howtos(object):
                 contents = f.read()
                 f.close()
             elif page:
-                if '_version' in page: 
+                if hasattr(page, '_version'): 
                     print "CIEMAT_howtos_version: %s" % page._version
                 print "CIEMAT_howtos_rstTime: %s" % page.rstTime
                 print "CIEMAT_howtos_id: %s" % page.meta.id
@@ -448,8 +448,8 @@ class howtos(object):
         params['htmlTime']  = page.htmlTime.strftime('%Y-%m-%d %H:%M')
         params['rstSize'] = len(page.rst)
         if page.html:  params['htmlSize'] = len(page.html)
-        if '_version' in page: params['version'] = page._version
-        else:                  params['version'] = ''
+        if hasattr(page, '_version'): params['version'] = page._version
+        else:                         params['version'] = ''
         params['creator'] = page.creator
         params['lastUpdater'] = page.lastUpdater
 
