@@ -40,7 +40,7 @@ delTempl = os.path.join(BASEDIR, 'deleted.templ')
 updateKTempl = os.path.join(BASEDIR, 'updateK.templ')
 
 txt2html = CGIDIR + '/simplish.py'
-rst2html = CGIDIR + '/txt2html/command2.sh'
+rst2html = CGIDIR + '/txt2html/command3.sh'
 rst2twiki = CGIDIR + '/rst2twiki'
 rst2mdown = CGIDIR + '/rst2mdown'
 mdown2rst = CGIDIR + '/mdown2rst'
@@ -625,14 +625,28 @@ class howtos(object):
         """
         self.mylog('save id=%s, fmt=%s, vers=%s, author=%s' % (id, format, version, author))
 
+        tnow = datetime.now()
+
         if format in ('md', 'markdown'):
-            params = {'markdown': contents, 'markdownTime': datetime.now()}
+            params = {'markdown': contents, 'markdownTime': tnow}
             out = shell(mdown2rst + ' -', input=contents)
-            params.update({'rst': out, 'rstTime': datetime.now()})
+            params.update({'rst': out, 'rstTime': tnow})
         else:
-            params = {'rst': contents, 'rstTime': datetime.now()}
+            params = {'rst': contents, 'rstTime': tnow}
 
         if author:  params['lastUpdater'] = author
+
+        # We first try to parse rst to HTML, since this is the main use case.
+        # If it fails, we return an error.
+        try:
+            out = shell(rst2html + ' -', input=params['rst'].encode('utf-8'))
+            params['html'] = out
+            params['htmlTime'] = tnow
+        except Exception, ex:
+            print "Status: 400 Bad Request"
+            print "Content-type: text/html\n"
+            print ("\nERROR: when saving %s:  **cannot parse ReST code**\n\n%s" % (id, ex)).replace('Output:', '\n\nOutput:\n')
+            return
 
         try:
 #            self.mylog('save params = %s' % (params.keys()))
