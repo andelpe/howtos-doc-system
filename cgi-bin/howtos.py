@@ -639,7 +639,15 @@ class howtos(object):
         # We first try to parse rst to HTML, since this is the main use case.
         # If it fails, we return an error.
         try:
-            out = shell(rst2html + ' -', input=params['rst'].encode('utf-8'))
+            #
+            # We need the input to be UTF-8 (which is what HTML editor and most PCs where
+            # 'howto' CLI is run use), because if it's other enconding we won't know which
+            # one it is, so how could we decode it?
+            # So we assume it's already UTF-8, and thus it doesn't make sense to decode
+            # and encode it again... we just use it as is.
+            #
+#            out = shell(rst2html + ' -', input=unicode(params['rst'], 'utf-8').encode('utf-8'))
+            out = shell(rst2html + ' -', input=params['rst'])
             params['html'] = out
             params['htmlTime'] = tnow
         except Exception, ex:
