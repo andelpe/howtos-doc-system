@@ -117,13 +117,17 @@ class ElasticIface(object):
         doc.delete()
 
 
-    def filter(self, names=[], kwords=[], contents=[], op='$or'):
+    def filter(self, names=[], kwords=[], contents=[], op='$or', 
+               Nnames=[], Nkwords=[], Ncontents=[]):
         """ 
         Returns the records matching both the passed name/kword/contents *lists of*
         patterns. 
 
         The default operation is to 'and' the filters, but you can 'or' them, passing
         'op=$or' (maybe other operations are possible, but do not rely on it).
+
+        The 'N*' patterns are joined to the others always with 'and' but with a logical
+        negation (prefixed with '~').
 
         If no pattern is set at all, then we return everything. If an incorrect 'op' is
         passed, we raise an exception.
@@ -134,22 +138,37 @@ class ElasticIface(object):
             names = kwords
 
         queries = []
-#        for name in names:        queries.append(es.Q('regexp', name='.*'+name+'.*'))
         for name in names:        queries.append(es.Q({'regexp': {'name.raw': '.*'+name+'.*'}}))
         for kword in kwords:      queries.append(es.Q('regexp', keywords='.*'+kword+'.*'))
         for content in contents:  queries.append(es.Q('match', rst=content))
+
+        Nqueries = []
+        for name in Nnames:        Nqueries.append(~es.Q({'regexp': {'name.raw': '.*'+name+'.*'}}))
+        for kword in Nkwords:      Nqueries.append(~es.Q('regexp', keywords='.*'+kword+'.*'))
+        for content in Ncontents:  Nqueries.append(~es.Q('match', rst=content))
             
         if op == '$and':    myfunc = lambda x,y: x & y
         elif op == '$or':   myfunc = lambda x,y: x | y
         else:  raise Exception('Filter operation not supported')       
 
 #        print queries
+#        print Nqueries
 #        print myfunc
 
         s = Howto.search()
         s = s.sort('name.raw')
         s = s.params(size=100)
-        if queries:  s = s.query(reduce(myfunc, queries))
+
+        expr = Nexpr = None
+        if queries:   
+            expr  = reduce(myfunc, queries)
+
+        if Nqueries:  
+            Nexpr = reduce(lambda x,y: x & y, Nqueries)
+            if expr:  expr = expr & Nexpr
+            else:     expr = Nexpr
+
+        if expr:  s = s.query(expr)
         
         return s.execute()
 

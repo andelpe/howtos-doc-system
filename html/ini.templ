@@ -1,5 +1,7 @@
 <!DOCTYPE html>
 
+<!-- #var kwordFilter = "&emsp; &emsp; &emsp; &emsp; Title/Kword filter: <input type=\"text\" class=\"filter\" name=\"kwordFilter\" value=\"\" />" -->
+<!-- #var bodyFilter  = "&emsp; &emsp; &emsp; &emsp; &emsp; &emsp;Contents filter: <input type=\"text\" class=\"filter\" name=\"bodyFilter\" value=\"\" />" -->
 <HTML>
 
 <HEAD>
@@ -10,11 +12,15 @@
 
  function myalert(){  alert("ALERT");  }   
 
- var kwordFilter = "&emsp; &emsp; &emsp; &emsp; Title/Kword filter: <input type=\"text\" class=\"filter\" name=\"kwordFilter\" value=\"\" />" 
- var bodyFilter  = "&emsp; &emsp; &emsp; &emsp; &emsp; &emsp;Contents filter: <input type=\"text\" class=\"filter\" name=\"bodyFilter\" value=\"\" />" 
+ var kwordFilter = "<input type=\"text\" class=\"filter\" name=\"kwordFilter\" size=25 value=\"\" />" 
+ var NkwordFilter = "<input type=\"text\" class=\"filter\" name=\"NkwordFilter\" value=\"\" />" 
+ var bodyFilter  = "<input type=\"text\" class=\"filter\" name=\"bodyFilter\" value=\"\" />" 
 
  function addKwordFilter() {
    $("#kwordFilter").html($("#kwordFilter").html() + "<br/>" + kwordFilter);
+ }
+ function addNKwordFilter() {
+   $("#NkwordFilter").html($("#NkwordFilter").html() + "<br/>" + NkwordFilter);
  }
  function addBodyFilter() {
    $("#bodyFilter").html($("#bodyFilter").html() + "<br/>" + bodyFilter);
@@ -127,34 +133,54 @@
 <table width="100%%">
 
 <tr>
-<td width="45%%">
+<td width="65%%">
 <form action="howtos.py" method="get">
 
-  <center>
-  %(baseFilt)s
-  </center>
-
+<table>
+<tr>
+<td valign="top">
+  Title/Kword filter:
   <span id="kwordFilter">
   %(kwordFilter)s
   </span>
   <br/> 
 
+</td>
+<td valign="top">
+
+  Contents filter: 
   <span id="bodyFilter">
   %(bodyFilter)s
   </span>
+  <br/> 
 
-  <br/><br/>
+</td>
+<td valign="top">
+  Kword exclude:   
+  <span id="NkwordFilter">
+  %(NkwordFilter)s
+  </span>
+  <br/> 
+
+</td>
+<tr><td colspan="3">
+  <br/>
   <center>
+  %(baseFilt)s
+  &emsp; &emsp; &emsp; &emsp; &emsp; &emsp;
   <input type="submit" name="filter" class="filter" value="Apply filter(s)" />
+  &emsp; &emsp; &emsp; &emsp; &emsp; &emsp;
+  &emsp; &emsp; &emsp; &emsp; &emsp; &emsp;
   </center>
+</td></tr>
+
+</table>
 
 </form> 
 </td>
 
-<td width="5%%">
-</td>
 
-<td width="40%%" valign="top">
+<td width="35%%" valign="top">
 <form action="howtos.py" method="post" onsubmit="return validateForm()">
    &emsp; &emsp; &emsp; &emsp; &emsp; &emsp; Format:
   <input type="radio" name="format" value="rst" checked>rst</input>
