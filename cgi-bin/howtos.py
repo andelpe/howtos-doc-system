@@ -258,26 +258,26 @@ class howtos(object):
         print json.dumps(result)
 
 
-    def produceIndex(self, rows=None, titleFilter=[], kwordFilter=[], bodyFilter=[], filtOp='$or', NkwordFilter=[]):
+    def produceIndex(self, rows=None, titleFilter=[], kwordFilter=[], bodyFilter=[], filtOp='$and', NkwordFilter=[]):
         """
         Produce an index page to look for documents.
         """
         baseFilt  = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"
-        baseFilt += """<input type="radio" name="filtOp" value="$or"  %s>OR</input>"""  % ('checked' if filtOp!='$and' else '')
-        baseFilt += """&nbsp;<input type="radio" name="filtOp" value="$and" %s>AND</input>""" % ('checked' if filtOp=='$and' else '')
+        baseFilt += """<input type="radio" name="filtOp" value="$or"  %s>OR</input>"""  % ('checked' if filtOp=='$or' else '')
+        baseFilt += """&nbsp;<input type="radio" name="filtOp" value="$and" %s>AND</input>""" % ('checked' if filtOp!='$or' else '')
 
 #        baseKword = """&nbsp;Title/Kword filter: <input type="text" class="filter" name="kwordFilter" value="%s" />"""
 #        baseBody  = """&nbsp;&nbsp;&nbsp; Contents filter: <input type="text" class="filter" name="bodyFilter" value="%s" />""" 
-        baseKword = """<input type="text" size="25" class="filter" name="kwordFilter" value="%s" autofocus />"""
-        baseBody  = """<input type="text" class="filter" name="bodyFilter" value="%s" />""" 
+        baseKword = """<input type="text" size="22" class="filter" name="kwordFilter" value="%s" autofocus >"""
+        baseBody  = """<input type="text" size="19" class="filter" name="bodyFilter" value="%s" >""" 
         
-        baseNKword = """<input type="text" class="filter" name="NkwordFilter" value="%s" />"""
+        baseNKword = """<input type="text" size="17" class="Nfilter" name="NkwordFilter" value="%s" >"""
         
         text = self.loadFile(iniTempl)
 
         def createText(mylist, buttonText, baseText):
             if not mylist:  mylist = [""]
-            mytext = """<input type="button" value="+" onclick="%s" />""" % buttonText
+            mytext = """<input class="plusbutton" type="button" value="+" onclick="%s">""" % buttonText
             mytext  += "<br/>\n".join([baseText % elem  for elem in mylist])
             return mytext
 
@@ -317,17 +317,23 @@ class howtos(object):
 
         map = {
             'kwordFilter': createText(kwordFilter, 'addKwordFilter()', baseKword),
-            'NkwordFilter': createText(NkwordFilter, 'addNKwordFilter()', baseNKword),
+            'NkwordFilter': createText(NkwordFilter, 'addNkwordFilter()', baseNKword),
             'bodyFilter':  createText(bodyFilter, 'addBodyFilter()', baseBody),
             'common': commonPart, 'recent': recentPart, 'list': mainPart,
             'baseFilt': baseFilt, 'commonKwords': commonKwdOpts,
         }
+        for key in ('ops', 'dcache', 'monitoring', 'htcondor',):
+            map['qf_'+key] = str(key in kwordFilter)
+        for key in ('ops',):
+            map['qf_N_'+key] = str(key in NkwordFilter)
 
         return text % map
 
 
     def output(self, id=None, titleFilter=[], kwordFilter=[], bodyFilter=[], filtOp=None,
-               format='html', action='show', direct=False, longl=False, NkwordFilter=[]):
+               format='html', action='show', direct=False, longl=False, 
+               NkwordFilter=[], qfClicked=""):
+#               NkwordFilter=[], quickFilters={}):
         """
         Basic method to display the index page (with appropriate filter) or
         a howto page in the specified format, or the edition page, or even a 
@@ -342,13 +348,29 @@ class howtos(object):
         if not kwordFilter:  kwordFilter = []
         elif type(kwordFilter) != list:  kwordFilter = [kwordFilter]
 
+#        self.mylog(NkwordFilter)
+#        if NkwordFilter == None:  NkwordFilter = ['ops']
         if not NkwordFilter:  NkwordFilter = []
         elif type(NkwordFilter) != list:  NkwordFilter = [NkwordFilter]
 
         if not bodyFilter:  bodyFilter = []
         elif type(bodyFilter)  != list:   bodyFilter = [bodyFilter]
 
-        if not filtOp:  filtOp = '$or'
+        if not filtOp:  filtOp = '$and'
+
+        if qfClicked:
+            mylist = kwordFilter
+            if qfClicked.startswith('N_'):  
+                mylist = NkwordFilter
+                qfClicked = qfClicked[2:]
+            if qfClicked in mylist:  mylist.remove(qfClicked)
+            else:                    mylist.append(qfClicked)
+
+#        if 'ops' in quickFilters:
+#            if quickFilters['ops'] == 'exclude': 
+#                if 'ops' not in NkwordFilter:  NkwordFilter.append('ops')
+#            if quickFilters['ops'] == 'only':   
+#                if 'ops' not in kwordFilter:  kwordFilter.append('ops')
 
         # If action was list, return json
         if action == 'list':
@@ -710,6 +732,7 @@ if format == None:  format = 'html'
 title  = args.getvalue('titleFilter')
 kword  = args.getvalue('kwordFilter')
 Nkword  = args.getvalue('NkwordFilter')
+
 body   = args.getvalue('bodyFilter')
 filtOp  = args.getvalue('filtOp')
 action = args.getvalue('action')
@@ -725,6 +748,9 @@ link = args.getvalue('link')
 version = args.getvalue('version')
 author = args.getvalue('author')
 longl = args.getvalue('longl')
+qfClicked = args.getvalue('qfClicked')
+#qf_ops = args.getvalue('qf_ops')
+#qf = {'ops': qf_ops}
 
 # Run the main method that returns the html result
 howto = howtos()
@@ -750,4 +776,7 @@ elif action == 'getFrecList':
     howto.getFrecList(filtOp)
 
 else:
-    howto.output(id, title, kword, body, filtOp, format, action, direct=direct, longl=longl, NkwordFilter=Nkword)
+    howto.output(id, title, kword, body, filtOp, format, action, direct=direct, longl=longl, 
+                 NkwordFilter=Nkword, qfClicked=qfClicked)
+#                 NkwordFilter=Nkword, quickFilters=qf)
+

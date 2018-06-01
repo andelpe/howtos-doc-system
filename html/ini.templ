@@ -1,7 +1,18 @@
 <!DOCTYPE html>
 
-<!-- #var kwordFilter = "&emsp; &emsp; &emsp; &emsp; Title/Kword filter: <input type=\"text\" class=\"filter\" name=\"kwordFilter\" value=\"\" />" -->
-<!-- #var bodyFilter  = "&emsp; &emsp; &emsp; &emsp; &emsp; &emsp;Contents filter: <input type=\"text\" class=\"filter\" name=\"bodyFilter\" value=\"\" />" -->
+<!-- #var kwordFilter = "&emsp; &emsp; &emsp; &emsp; Title/Kword filter: <input type=\"text\" class=\"filter\" name=\"kwordFilter\" value=\"\" >" -->
+<!-- #var bodyFilter  = "&emsp; &emsp; &emsp; &emsp; &emsp; &emsp;Contents filter: <input type=\"text\" class=\"filter\" name=\"bodyFilter\" value=\"\" >" -->
+<!-- var kwordFilter = "<input type=\"text\" class=\"filter\" name=\"kwordFilter\" size=25 value=\"\" >" -->
+<!--// function setKwordFilter(value) {-->
+<!--//   $("#kf1").val(value);-->
+<!--// }-->
+<!-- function addKwordFilterVal(value) {-->
+<!--   $("#kwordFilter").html($("#kwordFilter").html() + "<br/>" + kwordFilter + value + " id=\"qf_" + value+ "\" >");-->
+<!-- }-->
+<!-- function addNkwordFilter(value) {-->
+<!--   $("#NkwordFilter").html($("#NkwordFilter").html() + "<br/>" + NkwordFilter + value + ">");-->
+<!-- }-->
+
 <HTML>
 
 <HEAD>
@@ -12,20 +23,27 @@
 
  function myalert(){  alert("ALERT");  }   
 
- var kwordFilter = "<input type=\"text\" class=\"filter\" name=\"kwordFilter\" size=25 value=\"\" />" 
- var NkwordFilter = "<input type=\"text\" class=\"filter\" name=\"NkwordFilter\" value=\"\" />" 
- var bodyFilter  = "<input type=\"text\" class=\"filter\" name=\"bodyFilter\" value=\"\" />" 
+ var kwordFilter = "<input type=\"text\" class=\"filter\"   name=\"kwordFilter\" size=22 value=" 
+ var NkwordFilter = "<input type=\"text\" class=\"Nfilter\" name=\"NkwordFilter\" size=17 value=" 
+ var bodyFilter  = "<input type=\"text\" class=\"filter\" name=\"bodyFilter\" size=19 value=\"\" >" 
 
  function addKwordFilter() {
-   $("#kwordFilter").html($("#kwordFilter").html() + "<br/>" + kwordFilter);
+   $("#kwordFilter").html($("#kwordFilter").html() + "<br/>" + kwordFilter + "\"\" >");
  }
- function addNKwordFilter() {
-   $("#NkwordFilter").html($("#NkwordFilter").html() + "<br/>" + NkwordFilter);
+ function addNkwordFilter() {
+   $("#NkwordFilter").html($("#NkwordFilter").html() + "<br/>" + NkwordFilter + "\"\" >");
+ }
+ function addAndSubmit(func, value) {
+   func(value); 
+   $("#filterForm").submit();
+ }
+ function valAndSubmit(value) {
+   $("#qfClicked").val(value); 
+   $("#filterForm").submit();
  }
  function addBodyFilter() {
    $("#bodyFilter").html($("#bodyFilter").html() + "<br/>" + bodyFilter);
  }
-
  function addKword(value){
    $("#newKwords").val(value + ',' + $("#newKwords").val());
  }
@@ -49,11 +67,20 @@
   background-color: WhiteSmoke ;
   font-family: Arial, sans-serif;
   font-size: 110%%;
-  margin-left: 100px;
-  margin-right: 100px;
+  margin-left: 65px;
+  margin-right: 65px;
  }
  .filter{
   background-color: LightGreen;
+ }
+ .Nfilter{
+  background-color: Yellow;
+ }
+ [pressed="False"]{
+  background-color: LightGray;
+ }
+ [pressed="True"]{
+  background-color: DarkGray;
  }
  .add{
  background-color: Orange;
@@ -77,6 +104,17 @@
   font-size: 80%%;
   color: red;
  }
+ .myqf{
+  font-size: 80%%;
+  color: blue;
+ }
+ .plusbutton{
+  padding: 0px 0px;
+  height:30px;
+  width:15px;
+  font-size: 20px;
+ }
+/* input[type="button"]:focus{background-color:red;} */
  tr{
   line-height: 14px;
  }
@@ -126,7 +164,7 @@
 
 <BODY>
 
-<center> <input type="button" value="HOME" onclick="location.href='howtos.py';" /> </center>
+<center> <input type="button" value="HOME" onclick="location.href='howtos.py';"> </center>
 <h1 class="title">HowTo's &emsp; </h1>
 
 <center>
@@ -134,45 +172,73 @@
 
 <tr>
 <td width="65%%">
-<form action="howtos.py" method="get">
+<form action="howtos.py" method="get" id="filterForm">
 
 <table>
 <tr>
+
 <td valign="top">
   Title/Kword filter:
   <span id="kwordFilter">
   %(kwordFilter)s
   </span>
   <br/> 
-
 </td>
-<td valign="top">
 
-  Contents filter: 
-  <span id="bodyFilter">
-  %(bodyFilter)s
-  </span>
-  <br/> 
-
-</td>
 <td valign="top">
   Kword exclude:   
   <span id="NkwordFilter">
   %(NkwordFilter)s
   </span>
   <br/> 
-
 </td>
-<tr><td colspan="3">
+
+<td valign="top">
+  Contents filter: 
+  <span id="bodyFilter">
+  %(bodyFilter)s
+  </span>
+  <br/> 
+</td>
+
+<tr>
+<td colspan="3">
   <br/>
   <center>
   %(baseFilt)s
   &emsp; &emsp; &emsp; &emsp; &emsp; &emsp;
-  <input type="submit" name="filter" class="filter" value="Apply filter(s)" />
+  <input type="submit" name="filter" class="filter" value="Apply filter(s)">
   &emsp; &emsp; &emsp; &emsp; &emsp; &emsp;
   &emsp; &emsp; &emsp; &emsp; &emsp; &emsp;
   </center>
-</td></tr>
+</td>
+</tr>
+
+<tr>
+<td colspan="3">
+<!--<span class="mylabel">Quick filters:</span>-->
+<br/>
+<b>Quick filters:</b><br/>
+<!--<input type="hidden" name="qfClicked" id="qfClicked" value="N_ops">-->
+<input type="hidden" name="qfClicked" id="qfClicked" value="">
+ <input type="button" class="myqf" pressed="%(qf_ops)s" value="Add ops" onclick="valAndSubmit('ops')"> 
+ <input type="button" class="myqf" pressed="%(qf_N_ops)s" value="Excl ops" onclick="valAndSubmit('N_ops')"> 
+ &emsp; &emsp; 
+ <input type="button" class="myqf"  pressed="%(qf_dcache)s" value="dcache" onclick="valAndSubmit('dcache')"> 
+ <input type="button" class="myqf"  pressed="%(qf_monitoring)s" value="monitoring" onclick="valAndSubmit('monitoring')"> 
+ <input type="button" class="myqf"  pressed="%(qf_htcondor)s" value="htcondor" onclick="valAndSubmit('htcondor')"> 
+
+<!-- <input type="button" class="myqf" pressed="%(qf_ops)s" value="Add ops" onclick="addAndSubmit(addKwordFilterVal, 'ops')"> -->
+<!-- <input type="button" class="myqf" pressed="%(qf_N_ops)s" value="Excl ops" onclick="addAndSubmit(addNkwordFilter, 'ops')"> -->
+<!-- <input type="button" class="myqf" pressed="%(qf_ops)s" value="Add ops" onclick="submit()"> -->
+<!--<span class="mylabel">Kword 'ops':</span>-->
+<!-- <input type="radio" name="qf_ops" value="none" checked>None</input>-->
+<!-- <input type="radio" name="qf_ops" value="only">Select</input>-->
+<!-- <input type="radio" name="qf_ops" value="exclude">Exclude</input>-->
+
+</td>
+</tr>
+
 
 </table>
 
@@ -180,29 +246,29 @@
 </td>
 
 
-<td width="35%%" valign="top">
+<td width="30%%" valign="top">
 <form action="howtos.py" method="post" onsubmit="return validateForm()">
-   &emsp; &emsp; &emsp; &emsp; &emsp; &emsp; Format:
+   &emsp; &emsp; &emsp; &emsp; &nbsp; Format:
   <input type="radio" name="format" value="rst" checked>rst</input>
   <input type="radio" name="format" value="markdown">markdown</input> 
   <br/>
-  &emsp; &emsp; &emsp; Name: <input type="text" size=30 class="add" name="howtoName" id="newHowto"/>
+  &emsp; &emsp; Name: <input type="text" size=23 class="add" name="howtoName" id="newHowto">
   <br/>
-  &emsp; &emsp; Kwords: <input type="text" size="30" class="add" name="keywords" id="newKwords"/> 
+  &emsp; Kwords: <input type="text" size="23" class="add" name="keywords" id="newKwords"> 
      <div class="dropdown">
-       <button onclick="return false;">+</button>
+       <button class="plusbutton" onclick="return false;">+</button>
        <div class="dropdown-content">
           %(commonKwords)s
        </div>
      </div>
   <br/>(comma-separated)
-  <br/>
-  <input type="hidden" name="action" value="editNewHowto"/>
-  &emsp; &emsp; &emsp; &emsp; &emsp; &emsp; 
-  <input type="submit" name="addHowto" class="add" value="Add Howto" />
+  <input type="hidden" name="action" value="editNewHowto">
+  &emsp; &emsp; 
+  <input type="submit" name="addHowto" class="add" value="Add Howto">
 </form>
 </td>
 </tr>
+
 
 <tr>
 <td colspan="3">
