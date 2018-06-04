@@ -70,6 +70,10 @@
   margin-left: 65px;
   margin-right: 65px;
  }
+ .maintittle{
+  color: white;
+  text-decoration: none;
+ }
  .filter{
   background-color: LightGreen;
  }
@@ -115,11 +119,16 @@
   font-size: 20px;
  }
 /* input[type="button"]:focus{background-color:red;} */
+ .linkbutton{
+   height:27px;
+   font-size: 13px;
+   font-weight: bold;
+ }
  tr{
-  line-height: 14px;
+   line-height: 14px;
  }
  form, input{
-  font-family: monospace;
+   font-family: monospace;
  }
  h1.title {
    text-align: center;
@@ -164,8 +173,8 @@
 
 <BODY>
 
-<center> <input type="button" value="HOME" onclick="location.href='howtos.py';"> </center>
-<h1 class="title">HowTo's &emsp; </h1>
+<!--<center> <input class="linkbutton" type="button" value="HOME" onclick="location.href='howtos.py';"> </center>-->
+<h1 class="title"><a class="maintittle" href="howtos.py">HowTo's</a></h1>
 
 <center>
 <table width="100%%">

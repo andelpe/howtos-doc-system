@@ -12,6 +12,8 @@
 # TODO: support the version checking in web edition also?
 #       It's not easy, because we may save many times in the web, each will have a new version num!
 #
+# TODO: add a different list view, with columns, so that we can e.g. sort by creation/modif time
+#
 
 ### IMPORTS ###
 import os, logging, time

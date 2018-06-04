@@ -92,6 +92,17 @@
    
    }); // end of editCreator.click
 
+   $("#goButton").click(function(){
+      location.href = 'howtos.py?kwordFilter=' + $("#quickSearch").val();
+   }); // end of goButton function
+
+   $("#quickSearch").on("keypress", function(e){
+     if(e.keyCode == 13){
+      location.href = 'howtos.py?kwordFilter=' + $("#quickSearch").val();
+     }
+   }); // end of quickSearch function
+
+
  } // end of window.onload
 
  function addKword(value){
@@ -99,8 +110,25 @@
  }
 </script>
 
-</head>
-<body>
+<style type="text/css">
+.linkbutton{
+//<!--  padding: 3px 3px;-->
+  height:27px;
+  font-size: 13px;
+  font-weight: bold;
+ }
+.editbutton{
+//  padding: 0px 0px;
+  height:27px;
+  font-size: 13px;
+  color: red;
+  font-weight: bold;
+ }
+</style>
+
+</HEAD>
+
+<BODY>
 
 <table class="whole" style="table-layout: fixed; width: 100%%;">
 
@@ -114,26 +142,37 @@
 <td class="whole">
 %(docline)s
 <center> 
+ <div class="linkbutton">
  <div class="dropdown">
-   <button>Format</button>
+   <button class="linkbutton">Format</button>
    <div class="dropdown-content">
      <a href="/cgi-bin/howtos/howtos.py?id=%(id)s&format=rst">Rst</a>
      <a href="/cgi-bin/howtos/howtos.py?id=%(id)s&format=markdown">Markdown</a>
      <a href="/cgi-bin/howtos/howtos.py?id=%(id)s&format=twiki">Twiki</a>
      <a href="/cgi-bin/howtos/howtos.py?id=%(id)s&format=pdf">PDF</a>
    </div>
- </div> &emsp; &emsp; 
- <a href="/cgi-bin/howtos/howtos.py">Back Home</a> &emsp; &emsp;
+ </div> &emsp; &emsp; &emsp; &emsp; 
+ <input type="button" class="linkbutton" value="HOME" onclick="location.href='howtos.py';">  &emsp; &emsp; &emsp; &emsp;
  <div class="dropdown">
-   <button onclick="window.location.href='/cgi-bin/howtos/howtos.py?id=%(id)s&action=edit&format=rst'">Edit</button>
+   <button class="editbutton" onclick="window.location.href='/cgi-bin/howtos/howtos.py?id=%(id)s&action=edit&format=rst'">Edit</button>
    <div class="dropdown-content">
      <a href="/cgi-bin/howtos/howtos.py?id=%(id)s&action=edit&format=rst">Rst</a>
      <a href="/cgi-bin/howtos/howtos.py?id=%(id)s&action=edit&format=markdown">Markdown</a>
    </div> 
  </div> &emsp; &emsp; 
- <button onclick="window.location.href='/cgi-bin/howtos/howtos.py?id=%(id)s&action=remove'">Remove</button>
+ <button class="editbutton" onclick="window.location.href='/cgi-bin/howtos/howtos.py?id=%(id)s&action=remove'">Remove</button>
+ </div>
 </center>
 </td>
+
+<td class="whole">
+ <div  class="linkbutton">
+   Quick search: <br/>  
+   <input id="quickSearch" type="text" class="filter"  name="quickSearch" size=22 value="">
+   <button class="linkbutton" id="goButton">Go</button>
+ </div>
+</td>
+
 </tr>
 
 <tr class="whole">
@@ -174,5 +213,5 @@
 </tr>
 </table>
 
-</body>
-</html>
+</BODY>
+</HTML>
