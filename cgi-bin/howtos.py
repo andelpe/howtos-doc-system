@@ -63,6 +63,9 @@ numRecent = 12
 #maxRecent = numRecent**2
 numKwords = 15
 
+QuickFilterKeys = ('ops', 'dcache', 'monitor', 'htcondor', 'network',)
+QuickFilterNKeys = ('ops',)
+
 ### FUNCTIONS ####
 
 
@@ -262,8 +265,7 @@ class howtos(object):
         """
         Produce an index page to look for documents.
         """
-        baseFilt  = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"
-        baseFilt += """<input type="radio" name="filtOp" value="$or"  %s>OR</input>"""  % ('checked' if filtOp=='$or' else '')
+        baseFilt = """<input type="radio" name="filtOp" value="$or"  %s>OR</input>"""  % ('checked' if filtOp=='$or' else '')
         baseFilt += """&nbsp;<input type="radio" name="filtOp" value="$and" %s>AND</input>""" % ('checked' if filtOp!='$or' else '')
 
 #        baseKword = """&nbsp;Title/Kword filter: <input type="text" class="filter" name="kwordFilter" value="%s" />"""
@@ -322,9 +324,9 @@ class howtos(object):
             'common': commonPart, 'recent': recentPart, 'list': mainPart,
             'baseFilt': baseFilt, 'commonKwords': commonKwdOpts,
         }
-        for key in ('ops', 'dcache', 'monitoring', 'htcondor',):
+        for key in (QuickFilterKeys):
             map['qf_'+key] = str(key in kwordFilter)
-        for key in ('ops',):
+        for key in (QuickFilterNKeys):
             map['qf_N_'+key] = str(key in NkwordFilter)
 
         return text % map
@@ -332,7 +334,7 @@ class howtos(object):
 
     def output(self, id=None, titleFilter=[], kwordFilter=[], bodyFilter=[], filtOp=None,
                format='html', action='show', direct=False, longl=False, 
-               NkwordFilter=[], qfClicked=""):
+               NkwordFilter=[], qfClicked="NULL"):
 #               NkwordFilter=[], quickFilters={}):
         """
         Basic method to display the index page (with appropriate filter) or
@@ -348,8 +350,10 @@ class howtos(object):
         if not kwordFilter:  kwordFilter = []
         elif type(kwordFilter) != list:  kwordFilter = [kwordFilter]
 
-#        self.mylog(NkwordFilter)
-#        if NkwordFilter == None:  NkwordFilter = ['ops']
+        self.mylog(NkwordFilter)
+        if (NkwordFilter == None) and (qfClicked == None):  
+            NkwordFilter = ['ops']
+
         if not NkwordFilter:  NkwordFilter = []
         elif type(NkwordFilter) != list:  NkwordFilter = [NkwordFilter]
 
@@ -358,19 +362,13 @@ class howtos(object):
 
         if not filtOp:  filtOp = '$and'
 
-        if qfClicked:
+        if qfClicked and (qfClicked != "NULL"):
             mylist = kwordFilter
             if qfClicked.startswith('N_'):  
                 mylist = NkwordFilter
                 qfClicked = qfClicked[2:]
             if qfClicked in mylist:  mylist.remove(qfClicked)
             else:                    mylist.append(qfClicked)
-
-#        if 'ops' in quickFilters:
-#            if quickFilters['ops'] == 'exclude': 
-#                if 'ops' not in NkwordFilter:  NkwordFilter.append('ops')
-#            if quickFilters['ops'] == 'only':   
-#                if 'ops' not in kwordFilter:  kwordFilter.append('ops')
 
         # If action was list, return json
         if action == 'list':

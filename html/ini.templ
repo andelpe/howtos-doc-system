@@ -202,14 +202,13 @@
 </td>
 
 <tr>
-<td colspan="3">
+<td colspan="2">
   <br/>
   <center>
   %(baseFilt)s
-  &emsp; &emsp; &emsp; &emsp; &emsp; &emsp;
+  &emsp; &emsp; &emsp; &emsp; &emsp; &emsp; &emsp; &emsp; &emsp;
   <input type="submit" name="filter" class="filter" value="Apply filter(s)">
-  &emsp; &emsp; &emsp; &emsp; &emsp; &emsp;
-  &emsp; &emsp; &emsp; &emsp; &emsp; &emsp;
+  &emsp; 
   </center>
 </td>
 </tr>
@@ -220,13 +219,14 @@
 <br/>
 <b>Quick filters:</b><br/>
 <!--<input type="hidden" name="qfClicked" id="qfClicked" value="N_ops">-->
-<input type="hidden" name="qfClicked" id="qfClicked" value="">
+<input type="hidden" name="qfClicked" id="qfClicked" value="NULL">
  <input type="button" class="myqf" pressed="%(qf_ops)s" value="Add ops" onclick="valAndSubmit('ops')"> 
  <input type="button" class="myqf" pressed="%(qf_N_ops)s" value="Excl ops" onclick="valAndSubmit('N_ops')"> 
  &emsp; &emsp; 
  <input type="button" class="myqf"  pressed="%(qf_dcache)s" value="dcache" onclick="valAndSubmit('dcache')"> 
- <input type="button" class="myqf"  pressed="%(qf_monitoring)s" value="monitoring" onclick="valAndSubmit('monitoring')"> 
+ <input type="button" class="myqf"  pressed="%(qf_monitor)s" value="monitor" onclick="valAndSubmit('monitor')"> 
  <input type="button" class="myqf"  pressed="%(qf_htcondor)s" value="htcondor" onclick="valAndSubmit('htcondor')"> 
+ <input type="button" class="myqf"  pressed="%(qf_network)s" value="network" onclick="valAndSubmit('network')"> 
 
 <!-- <input type="button" class="myqf" pressed="%(qf_ops)s" value="Add ops" onclick="addAndSubmit(addKwordFilterVal, 'ops')"> -->
 <!-- <input type="button" class="myqf" pressed="%(qf_N_ops)s" value="Excl ops" onclick="addAndSubmit(addNkwordFilter, 'ops')"> -->
