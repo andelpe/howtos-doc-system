@@ -41,7 +41,8 @@ iniTempl  = os.path.join(BASEDIR, 'ini.templ')
 delTempl = os.path.join(BASEDIR, 'deleted.templ')
 updateKTempl = os.path.join(BASEDIR, 'updateK.templ')
 
-txt2html = CGIDIR + '/simplish.py'
+REDIS_SOCKET = '/run/redis/redis.sock'
+
 rst2html = CGIDIR + '/txt2html/command3.sh'
 rst2twiki = CGIDIR + '/rst2twiki'
 rst2mdown = CGIDIR + '/rst2mdown'
@@ -94,7 +95,7 @@ class howtos(object):
         self.db = ElasticIface()
 
         # Connect to redis also
-        self.cache = redis.StrictRedis(unix_socket_path='/tmp/redis.sock')
+        self.cache = redis.StrictRedis(unix_socket_path=REDIS_SOCKET)
 
 
     def loadFile(self, fname):
@@ -250,7 +251,7 @@ class howtos(object):
             elem = {'name': row.name, 'id': row.meta.id, 'kwords': ','.join(row.keywords)}
             if longl: 
                 mypage = self.db.getHowto(row.meta.id)
-                elem['version'] = mypage._version
+                elem['version'] = mypage.meta.version
                 elem['creator'] = mypage.creator
                 elem['lastUpdater'] = mypage.lastUpdater
                 elem['rstTime'] = mypage.rstTime.strftime('%Y-%m-%d %H:%M')
@@ -439,8 +440,8 @@ class howtos(object):
                 contents = f.read()
                 f.close()
             elif page:
-                if hasattr(page, '_version'): 
-                    print "CIEMAT_howtos_version: %s" % page._version
+                if hasattr(page.meta, 'version'): 
+                    print "CIEMAT_howtos_version: %s" % page.meta.version
                 print "CIEMAT_howtos_rstTime: %s" % page.rstTime
                 print "CIEMAT_howtos_id: %s" % page.meta.id
                 # Here we read from Elastic, and we get Unicode type!

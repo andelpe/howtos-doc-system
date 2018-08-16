@@ -1,31 +1,38 @@
+from __future__ import print_function, division
+
 from datetime import datetime
-#from elasticsearch_dsl import DocType, String, Date, Integer, Q
 import elasticsearch_dsl as es
 from elasticsearch_dsl.connections import connections
 import os, sys
 from utils import err, shell
 from optparse import OptionParser
+from functools import reduce
 
-indexName = 'howtos'
-class Howto(es.DocType):
-    name = es.String(fields={'raw': es.String(index='not_analyzed')})
-    keywords = es.String(index='not_analyzed')
+indexName = 'howtosv6'
+indexType = 'howto'
+class Howto(es.Document):
+    name = es.Text(fields={'raw': es.Keyword()})
+    keywords = es.Keyword()
     rstTime = es.Date()
     htmlTime = es.Date()
     markdownTime = es.Date()
     twikiTime = es.Date()
     pdfTime = es.Date()
-    rst = es.String(analyzer='snowball')
-    html = es.String(index='no')
-    markdown = es.String(index='no')
-    twiki = es.String(index='no')
-    pdf = es.String(index='no')
+    rst = es.Text(analyzer='snowball')
+    html = es.Text(index=False)
+    markdown = es.Text(index=False)
+    twiki = es.Text(index=False)
+    pdf = es.Text(index=False)
     chars = es.Integer()
-    creator = es.String()
-    lastUpdater = es.String()
+    creator = es.Text()
+    lastUpdater = es.Text()
+
+    class Index:
+        name = indexName
+        doc_type = indexType
 
     class Meta:
-        index = indexName
+        doc_type = indexType
 
     def save(self, **kwargs):
         self.chars = len(self.rst.split())
@@ -74,14 +81,14 @@ class ElasticIface(object):
             results = s.scan()
 
         for howto in results:
-            print 'name:', howto.name
-            print '_id:', howto.meta.id
-            print 'rst:', howto.rst.split('\n')[0]
-            print 'rstTime:', howto.rstTime
-            print 'kwords:', howto.keywords
-            print 'html:', howto.html.split('\n')[0]
-            print 'chars:', howto.chars
-            print
+            print('name:', howto.name)
+            print('_id:', howto.meta.id)
+            print('rst:', howto.rst.split('\n')[0])
+            print('rstTime:', howto.rstTime)
+            print('kwords:', howto.keywords)
+            print('html:', howto.html.split('\n')[0])
+            print('chars:', howto.chars)
+            print()
 
 
     def getHowto(self, id):
@@ -151,9 +158,9 @@ class ElasticIface(object):
         elif op == '$or':   myfunc = lambda x,y: x | y
         else:  raise Exception('Filter operation not supported')       
 
-#        print queries
-#        print Nqueries
-#        print myfunc
+#        print(queries)
+#        print(Nqueries)
+#        print(myfunc)
 
         s = Howto.search()
         s = s.sort('name.raw')
@@ -223,7 +230,7 @@ class ElasticIface(object):
         for fname in fnames:
 
             if not fname.startswith('howto-'):  continue
-            if self.verb:  print 'Processing file %s' % fname
+            if self.verb:  print('Processing file %s' % fname)
 
             tokens = fname.split('.rst')[0].split('-')[1:]
             name = '-'.join(tokens)
@@ -257,7 +264,7 @@ class ElasticIface(object):
 
         # If it existed, remove it
         if self.created:  
-            print "Deleting existing ES index"
+            print("Deleting existing ES index")
             howtos = es.Index('howtos')
             howtos.delete()
             self.created = False
@@ -295,12 +302,12 @@ functionality is also available as a script."""
     # Option usage 
     helpstr = "Show usage information"
     def myusage(option, opt, value, parser): 
-        print parser.get_usage().split('\n')[0]
+        print(parser.get_usage().split('\n')[0])
         sys.exit(0)
     parser.add_option("-u", "--usage", help=helpstr, action="callback",  
                       callback=myusage)
     def usage():
-        print parser.get_usage().split('\n')[0]
+        print(parser.get_usage().split('\n')[0])
 
     helpstr = """Use 'dir' as the base for HowTo files (probabl, for parsing)."""
     parser.add_option("-d", "--dir", dest="dir", help=helpstr, 
