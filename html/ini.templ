@@ -23,15 +23,19 @@
 
  function myalert(){  alert("ALERT");  }   
 
- var kwordFilter = "<input type=\"text\" class=\"filter\"   name=\"kwordFilter\" size=22 value=" 
- var NkwordFilter = "<input type=\"text\" class=\"Nfilter\" name=\"NkwordFilter\" size=17 value=" 
- var bodyFilter  = "<input type=\"text\" class=\"filter\" name=\"bodyFilter\" size=19 value=\"\" >" 
+ var tf = "<input type=\"text\" class=\"filter\"   name=\"tf\" size=20 value=" 
+ var kwf = "<input type=\"text\" class=\"filter\"   name=\"kwf\" size=20 value=" 
+ var Nkwf = "<input type=\"text\" class=\"Nfilter\" name=\"Nkwf\" size=17 value=" 
+ var bf  = "<input type=\"text\" class=\"filter\" name=\"bf\" size=19 value=\"\" >" 
 
- function addKwordFilter() {
-   $("#kwordFilter").html($("#kwordFilter").html() + "<br/>" + kwordFilter + "\"\" >");
+ function addTf() {
+   $("#tf").html($("#tf").html() + "<br/>" + tf + "\"\" >");
  }
- function addNkwordFilter() {
-   $("#NkwordFilter").html($("#NkwordFilter").html() + "<br/>" + NkwordFilter + "\"\" >");
+ function addKwf() {
+   $("#kwf").html($("#kwf").html() + "<br/>" + kwf + "\"\" >");
+ }
+ function addNkwf() {
+   $("#Nkwf").html($("#Nkwf").html() + "<br/>" + Nkwf + "\"\" >");
  }
  function addAndSubmit(func, value) {
    func(value); 
@@ -41,8 +45,8 @@
    $("#qfClicked").val(value); 
    $("#filterForm").submit();
  }
- function addBodyFilter() {
-   $("#bodyFilter").html($("#bodyFilter").html() + "<br/>" + bodyFilter);
+ function addBf() {
+   $("#bf").html($("#bf").html() + "<br/>" + bf);
  }
  function addKword(value){
    $("#newKwords").val(value + ',' + $("#newKwords").val());
@@ -173,39 +177,47 @@
 
 <BODY>
 
-<!--<center> <input class="linkbutton" type="button" value="HOME" onclick="location.href='howtos.py';"> </center>-->
-<h1 class="title"><a class="maintittle" href="howtos.py">HowTo's</a></h1>
+<!--<center> <input class="linkbutton" type="button" value="HOME" onclick="location.href='/howtos';"> </center>-->
+<h1 class="title"><a class="maintittle" href="/howtos">HowTo's</a></h1>
 
 <center>
 <table width="100%%">
 
 <tr>
 <td width="65%%">
-<form action="howtos.py" method="get" id="filterForm">
+<form action="/howtos" method="get" id="filterForm">
 
 <table>
 <tr>
 
 <td valign="top">
-  Title/Kword filter:
-  <span id="kwordFilter">
-  %(kwordFilter)s
+  Title filter:
+  <span id="tf">
+  %(tf)s
+  </span>
+  <br/> 
+</td>
+
+<td valign="top">
+  Kword filter:
+  <span id="kwf">
+  %(kwf)s
   </span>
   <br/> 
 </td>
 
 <td valign="top">
   Kword exclude:   
-  <span id="NkwordFilter">
-  %(NkwordFilter)s
+  <span id="Nkwf">
+  %(Nkwf)s
   </span>
   <br/> 
 </td>
 
 <td valign="top">
   Contents filter: 
-  <span id="bodyFilter">
-  %(bodyFilter)s
+  <span id="bf">
+  %(bf)s
   </span>
   <br/> 
 </td>
@@ -215,7 +227,7 @@
   <br/>
   <center>
   %(baseFilt)s
-  &emsp; &emsp; &emsp; &emsp; &emsp; &emsp; &emsp; &emsp; &emsp;
+  &emsp;
   <input type="submit" name="filter" class="filter" value="Apply filter(s)">
   &emsp; 
   </center>
@@ -237,8 +249,8 @@
  <input type="button" class="myqf"  pressed="%(qf_htcondor)s" value="htcondor" onclick="valAndSubmit('htcondor')"> 
  <input type="button" class="myqf"  pressed="%(qf_network)s" value="network" onclick="valAndSubmit('network')"> 
 
-<!-- <input type="button" class="myqf" pressed="%(qf_ops)s" value="Add ops" onclick="addAndSubmit(addKwordFilterVal, 'ops')"> -->
-<!-- <input type="button" class="myqf" pressed="%(qf_N_ops)s" value="Excl ops" onclick="addAndSubmit(addNkwordFilter, 'ops')"> -->
+<!-- <input type="button" class="myqf" pressed="%(qf_ops)s" value="Add ops" onclick="addAndSubmit(addKwfVal, 'ops')"> -->
+<!-- <input type="button" class="myqf" pressed="%(qf_N_ops)s" value="Excl ops" onclick="addAndSubmit(addNkwf, 'ops')"> -->
 <!-- <input type="button" class="myqf" pressed="%(qf_ops)s" value="Add ops" onclick="submit()"> -->
 <!--<span class="mylabel">Kword 'ops':</span>-->
 <!-- <input type="radio" name="qf_ops" value="none" checked>None</input>-->
@@ -256,7 +268,7 @@
 
 
 <td width="30%%" valign="top">
-<form action="howtos.py" method="post" onsubmit="return validateForm()">
+<form action="/howtos" method="post" onsubmit="return validateForm()">
    &emsp; &emsp; &emsp; &emsp; &nbsp; Format:
   <input type="radio" name="format" value="rst" checked>rst</input>
   <input type="radio" name="format" value="markdown">markdown</input> 

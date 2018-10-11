@@ -69,6 +69,9 @@ numKwords = 15
 QuickFilterKeys = ('ops', 'dcache', 'monitor', 'htcondor', 'network',)
 QuickFilterNKeys = ('ops',)
 
+linkFormat = "^[a-zA-Z0-9._\-]*$"
+linkPattern = re.compile(linkFormat)
+
 ### FUNCTIONS ####
 
 
@@ -144,15 +147,23 @@ class howtos(object):
         return self.cache.lrange('recentKwords', 0, numKwords)
 
 
-    def getPage(self, id, format='html'):
+    def getPage(self, id=None, hId=None, format='html'):
         """
         Get a Howto and return it as text/html/twiki.
         """
+        self.mylog("In getPage: %s %s %s" % (id, hId, format))
         try:
             # Here we get the RST contents from ES, in Unicode type
             # Thus, we'd better encode them before passing to shell for HTML/twiki.. production
 
-            mypage = self.db.getHowto(id)
+            if id:    
+                mypage = self.db.getHowto(id)
+            elif hId: 
+                mypage = self.db.getHowtoHId(hId)
+                id = mypage.meta.id
+            else: 
+                raise Exception('Error in getPage: No id/hId provided')
+
             if not mypage: return None
 #            self.mylog("MYPAGE: %s" % mypage)
 
@@ -167,7 +178,7 @@ class howtos(object):
                 # Check if Markdown field is there and is up-to-date. If not, produce it and store it
                 if ('markdown' not in mypage) or ('markdownTime' not in mypage) or (mypage.markdownTime < mypage.rstTime):
                     out = shell(rst2mdown + ' -', input=mypage.rst.encode('utf-8'))
-                    self.db.update(mypage.meta.id, {'markdown': out, 'markdownTime': datetime.now()})
+                    self.db.update(id, {'markdown': out, 'markdownTime': datetime.now()})
                     mypage = self.db.getHowto(id)
 
             if format == 'html':
@@ -175,7 +186,7 @@ class howtos(object):
                 # Check if HTML field is there and is up-to-date. If not, produce it and store it
                 if (not mypage.html) or (not mypage.htmlTime) or (mypage.htmlTime < mypage.rstTime):
                     out = shell(rst2html + ' -', input=mypage.rst.encode('utf-8'))
-                    self.db.update(mypage.meta.id, {'html': out, 'htmlTime': datetime.now()})
+                    self.db.update(id, {'html': out, 'htmlTime': datetime.now()})
                     mypage = self.db.getHowto(id)
 
             elif format == 'twiki':
@@ -184,7 +195,7 @@ class howtos(object):
                 if ('twiki' not in mypage) or ('twikiTime' not in mypage) or (mypage.twikiTime < mypage.rstTime):
 #                    self.mylog("Going into Twiki production")
                     out = shell(rst2twiki + ' -', input=mypage.rst.encode('utf-8'))
-                    self.db.update(mypage.meta.id, {'twiki': out, 'twikiTime': datetime.now()})
+                    self.db.update(id, {'twiki': out, 'twikiTime': datetime.now()})
                     mypage = self.db.getHowto(id)
 
             elif format == 'pdf':
@@ -196,7 +207,7 @@ class howtos(object):
                     # Apparently PDF is produced in latin-1, so it's easier to store it in DB in latin-1
                     # (otherwise failures happen...). When storing in the DB, we explicitely 
                     # convert to unicode to indicate that latin-1 should be used to decode
-                    self.db.update(mypage.meta.id, {'pdf': unicode(out, encoding='latin-1'), 'pdfTime': datetime.now()})
+                    self.db.update(id, {'pdf': unicode(out, encoding='latin-1'), 'pdfTime': datetime.now()})
                     self.mylog("....After DB update")
                     mypage = self.db.getHowto(id)
 
@@ -227,12 +238,12 @@ class howtos(object):
             title = row.name
             id = row.meta.id
             if (not id in self.privatePages):
-                    mylink = 'href="howtos.py?id=%s' % id
+                    mylink = 'href="/howtos?id=%s' % id
                     if (cont % 4) == 0: text += '\n<tr>'
                     text += '\n<td>'
                     text += '<a class="howtoLink" %s">%s</a>' % (mylink, title)
                     text += '&nbsp;&nbsp;&nbsp;<br/>'
-                    linkList = ['<a class="smLink" href="howtos.py?kwordFilter=%s">%s</a>' % (x,x) for x in row.keywords]
+                    linkList = ['<a class="smLink" href="/howtos?kwf=%s">%s</a>' % (x,x) for x in row.keywords]
                     text += ' &nbsp;'.join(linkList)
                     text += '&nbsp;&nbsp;<br/>&nbsp;</td>'
                     if (cont % 4) == 3: text += '\n</tr>' 
@@ -242,41 +253,67 @@ class howtos(object):
         return text
 
 
+    def _getMeta(self, doc, longl=False):
+        """
+        Produce a json of the passed doc.
+        """
+        elem = {'name': doc.name, 'id': doc.meta.id, 'kwords': ','.join(doc.keywords)}
+
+
+        if longl: 
+            if not hasattr(doc.meta, 'version'):
+                doc = self.db.getHowto(elem['id'])
+            elem['version'] = doc.meta.version
+            elem['creator'] = doc.creator
+            elem['lastUpdater'] = doc.lastUpdater
+            elem['rstTime'] = doc.rstTime.strftime('%Y-%m-%d %H:%M')
+            if not doc.hId:  elem['hId'] = 'UNASSIGNED'
+            else:            elem['hId'] = doc.hId
+
+        return elem
+            # Note: it seems that listed doc do not include version info, so we cannot use the following 
+#            result.append({'name': row.name, 'id': row.meta.id, 'kwords': ','.join(row.keywords), 'version': row._version})
+
+
+    def getMeta(self, id, longl=False):
+        """
+        Produce a json of the doc with specified id.
+        """
+        doc = self.db.getHowto(id)
+        elem = self._getMeta(doc, longl)
+
+        print "Content-type: application/json\n" 
+        print json.dumps(elem)
+
+
     def list(self, rows, longl=False):
         """
-        Produce a json list of matching howtos (returns id, name and kwords only).
+        Produce a json list of passed docs.
         """
         result = []
         for row in rows:
-            elem = {'name': row.name, 'id': row.meta.id, 'kwords': ','.join(row.keywords)}
-            if longl: 
-                mypage = self.db.getHowto(row.meta.id)
-                elem['version'] = mypage.meta.version
-                elem['creator'] = mypage.creator
-                elem['lastUpdater'] = mypage.lastUpdater
-                elem['rstTime'] = mypage.rstTime.strftime('%Y-%m-%d %H:%M')
+            elem = self._getMeta(row, longl)
             result.append(elem)
-
-            # Note: it seems that listed doc do not include version info, so we cannot use the following 
-#            result.append({'name': row.name, 'id': row.meta.id, 'kwords': ','.join(row.keywords), 'version': row._version})
 
         print "Content-type: application/json\n" 
         print json.dumps(result)
 
 
-    def produceIndex(self, rows=None, titleFilter=[], kwordFilter=[], bodyFilter=[], filtOp='$and', NkwordFilter=[]):
+    def produceIndex(self, rows=None, tf=[], kwf=[], bf=[], filtOp='$and', Nkwf=[]):
         """
         Produce an index page to look for documents.
         """
-        baseFilt = """<input type="radio" name="filtOp" value="$or"  %s>OR</input>"""  % ('checked' if filtOp=='$or' else '')
+        baseFilt = "&emsp; &emsp; &emsp; &emsp; &emsp; &emsp;"
+        baseFilt += """<input type="radio" name="filtOp" value="$or"  %s>OR</input>"""  % ('checked' if filtOp=='$or' else '')
         baseFilt += """&nbsp;<input type="radio" name="filtOp" value="$and" %s>AND</input>""" % ('checked' if filtOp!='$or' else '')
 
-#        baseKword = """&nbsp;Title/Kword filter: <input type="text" class="filter" name="kwordFilter" value="%s" />"""
-#        baseBody  = """&nbsp;&nbsp;&nbsp; Contents filter: <input type="text" class="filter" name="bodyFilter" value="%s" />""" 
-        baseKword = """<input type="text" size="22" class="filter" name="kwordFilter" value="%s" autofocus >"""
-        baseBody  = """<input type="text" size="19" class="filter" name="bodyFilter" value="%s" >""" 
+#        baseKword = """&nbsp;Title/Kword filter: <input type="text" class="filter" name="kwf" value="%s" />"""
+#        baseBody  = """&nbsp;&nbsp;&nbsp; Contents filter: <input type="text" class="filter" name="bf" value="%s" />""" 
+        baseTitle = """<input type="text" size="20" class="filter" name="tf" value="%s" autofocus >"""
+        baseKword = """<input type="text" size="20" class="filter" name="kwf" value="%s" autofocus >"""
+        baseBody  = """<input type="text" size="19" class="filter" name="bf" value="%s" >""" 
         
-        baseNKword = """<input type="text" size="17" class="Nfilter" name="NkwordFilter" value="%s" >"""
+        baseNKword = """<input type="text" size="17" class="Nfilter" name="Nkwf" value="%s" >"""
         
         text = self.loadFile(iniTempl)
 
@@ -288,16 +325,16 @@ class howtos(object):
 
 
         sectionText = '<tr><td colspan="4"><br/><span class="mylabel">%s</span><hr></td></tr>'
-        mainList = self.howtoList(rows) if rows!=None else self.howtoList(self.db.filter(titleFilter, kwordFilter, bodyFilter))
+        mainList = self.howtoList(rows) if rows!=None else self.howtoList(self.db.filter(tf, kwf, bf))
 
         commonKwords = self.getCommonKwords()
-        if not (titleFilter or kwordFilter or bodyFilter):
+        if not (tf or kwf or bf):
 
             mainPart = sectionText % ('All docs') + mainList
 
             recentPart = sectionText % ('Recently visited')
             recentList = self.db.getHowtoList(self.getRecentDocs())
-            rKwds = ['<a class="smLink2" href="howtos.py?kwordFilter=%s">%s</a>' % (x,x) for x in self.getRecentKwords()]
+            rKwds = ['<a class="smLink2" href="/howtos?kwf=%s">%s</a>' % (x,x) for x in self.getRecentKwords()]
             if rKwds:
                 recentPart += '<tr><td colspan="4">' + ' &nbsp; '.join(rKwds) + '<br/><hr></td></tr>'
             if recentList:
@@ -305,7 +342,7 @@ class howtos(object):
 
             commonList = self.db.getHowtoList(self.getCommonDocs())
             commonPart = sectionText % ('Most visited') 
-            cKwds = ['<a class="smLink2" href="howtos.py?kwordFilter=%s">%s</a>' % (x,x) for x in commonKwords]
+            cKwds = ['<a class="smLink2" href="/howtos?kwf=%s">%s</a>' % (x,x) for x in commonKwords]
             if cKwds:
                 commonPart += '<tr><td colspan="4">' + ' &nbsp; '.join(cKwds) + '<br/><hr></td></tr>'
             if commonList:
@@ -321,24 +358,25 @@ class howtos(object):
             commonKwdOpts += '<a onclick="addKword(\'%s\')">%s</a>' % (k, k)
 
         map = {
-            'kwordFilter': createText(kwordFilter, 'addKwordFilter()', baseKword),
-            'NkwordFilter': createText(NkwordFilter, 'addNkwordFilter()', baseNKword),
-            'bodyFilter':  createText(bodyFilter, 'addBodyFilter()', baseBody),
+            'tf': createText(tf, 'addTf()', baseTitle),
+            'kwf': createText(kwf, 'addKwf()', baseKword),
+            'Nkwf': createText(Nkwf, 'addNkwf()', baseNKword),
+            'bf':  createText(bf, 'addBf()', baseBody),
             'common': commonPart, 'recent': recentPart, 'list': mainPart,
             'baseFilt': baseFilt, 'commonKwords': commonKwdOpts,
         }
         for key in (QuickFilterKeys):
-            map['qf_'+key] = str(key in kwordFilter)
+            map['qf_'+key] = str(key in kwf)
         for key in (QuickFilterNKeys):
-            map['qf_N_'+key] = str(key in NkwordFilter)
+            map['qf_N_'+key] = str(key in Nkwf)
 
         return text % map
 
 
-    def output(self, id=None, titleFilter=[], kwordFilter=[], bodyFilter=[], filtOp=None,
+    def output(self, id=None, tf=[], kwf=[], bf=[], filtOp=None,
                format='html', action='show', direct=False, longl=False, 
-               NkwordFilter=[], qfClicked="NULL"):
-#               NkwordFilter=[], quickFilters={}):
+               Nkwf=[], qfClicked="NULL", hId=None):
+#               Nkwf=[], quickFilters={}):
         """
         Basic method to display the index page (with appropriate filter) or
         a howto page in the specified format, or the edition page, or even a 
@@ -346,29 +384,37 @@ class howtos(object):
         """
         self.mylog("In output: %s, %s" % (action, format))
 
+        def sanitizeList(v):
+            """
+            Return a list based on 'v', be it a list itself, a single string, 
+            or one including commas (several elements).
+            """
+            result = []
+            if v and (type(v) == list):
+                for item in v:
+                    if ',' in item: result += item.split(',')
+                    else:           result.append(item)
+            elif v:
+                result = v.split(',')
+            return result
+
         # Sanitize filters (at least one filter of each, but by default containing nothing)
-        if not titleFilter:  titleFilter = []
-        elif type(titleFilter) != list:  titleFilter = [titleFilter]
+        tf = sanitizeList(tf)
+        kwf = sanitizeList(kwf)
+        bf = sanitizeList(bf)
 
-        if not kwordFilter:  kwordFilter = []
-        elif type(kwordFilter) != list:  kwordFilter = [kwordFilter]
+#        self.mylog(Nkwf)
+        if (Nkwf == None) and (qfClicked == None):  
+            Nkwf = ['ops']
+        Nkwf = sanitizeList(Nkwf)
 
-        self.mylog(NkwordFilter)
-        if (NkwordFilter == None) and (qfClicked == None):  
-            NkwordFilter = ['ops']
-
-        if not NkwordFilter:  NkwordFilter = []
-        elif type(NkwordFilter) != list:  NkwordFilter = [NkwordFilter]
-
-        if not bodyFilter:  bodyFilter = []
-        elif type(bodyFilter)  != list:   bodyFilter = [bodyFilter]
 
         if not filtOp:  filtOp = '$and'
 
         if qfClicked and (qfClicked != "NULL"):
-            mylist = kwordFilter
+            mylist = kwf
             if qfClicked.startswith('N_'):  
-                mylist = NkwordFilter
+                mylist = Nkwf
                 qfClicked = qfClicked[2:]
             if qfClicked in mylist:  mylist.remove(qfClicked)
             else:                    mylist.append(qfClicked)
@@ -377,16 +423,16 @@ class howtos(object):
         if action == 'list':
 
             # Get matching docs
-            rows = self.db.filter(names=titleFilter, kwords=kwordFilter, contents=bodyFilter, op=filtOp, Nkwords=NkwordFilter)
+            rows = self.db.filter(names=tf, kwords=kwf, contents=bf, op=filtOp, Nkwords=Nkwf)
 
             # Return appropiate json 
             self.list(rows, longl=longl)
 
-        # If no id is given, filter the DB
-        elif (not id) or (id == 'index.html'):
+        # If no id/hId is given, filter the DB
+        elif ((not id) or (id == 'index.html')) and (not hId):
 
             # Get matching docs
-            rows = self.db.filter(names=titleFilter, kwords=kwordFilter, contents=bodyFilter, op=filtOp, Nkwords=NkwordFilter)
+            rows = self.db.filter(names=tf, kwords=kwf, contents=bf, op=filtOp, Nkwords=Nkwf)
 
             # If only one match (and 'direct' flag), show it directly
             if direct and (len(rows) == 1):
@@ -394,13 +440,15 @@ class howtos(object):
 
             # Else, produce the page showing the complete list
             else:
-                self.show(contents=self.produceIndex(rows, titleFilter, kwordFilter, bodyFilter, filtOp, 
-                                                     NkwordFilter=NkwordFilter))
+                self.show(contents=self.produceIndex(rows, tf, kwf, bf, filtOp, 
+                                                     Nkwf=Nkwf))
 
         # Else, we must show a concrete page
         else:
-
-            mypage = self.getPage(id, format)
+            if hId: 
+                mypage = self.getPage(hId=hId, format=format)
+            else:
+                mypage = self.getPage(id=id, format=format)
 
             if not mypage: 
                 self.show(fname=ERROR_PAGE, format=format)
@@ -472,15 +520,21 @@ class howtos(object):
 
         # Keywords
         params['kwords'] = ','.join(page.keywords)
-        klink = 'howtos.py?kwordFilter='
+        klink = '/howtos?kwf='
         params['kwordList'] = '\n'.join(['<li><a href="%s%s">%s</a></li>' % (klink, x, x) for x in page.keywords])
+
+        # Human link
+        if (not hasattr(page, 'hId')) or (not page.hId):  
+            params['hId'] = 'UNASSIGNED' 
+        else:  
+            params['hId'] = page.hId
 
         # Metadata
         params['changeTime'] = page.rstTime.strftime('%Y-%m-%d %H:%M')
         params['htmlTime']  = page.htmlTime.strftime('%Y-%m-%d %H:%M')
         params['rstSize'] = len(page.rst)
         if page.html:  params['htmlSize'] = len(page.html)
-        if hasattr(page, '_version'): params['version'] = page._version
+        if hasattr(page.meta, 'version'): params['version'] = page.meta.version
         else:                         params['version'] = ''
         params['creator'] = page.creator
         params['lastUpdater'] = page.lastUpdater
@@ -531,7 +585,7 @@ class howtos(object):
         if format != 'markdown':  format = 'rst'
 
         print "Content-type: text/html\n"
-        if not contents:  contents = getattr(self.getPage(id, format=format), format)
+        if not contents:  contents = getattr(self.getPage(id=id, format=format), format)
 
         params = {'contents': contents, 'title': title, 'id': id, 'format': format}
         results = self.loadFile(editTempl) % params
@@ -540,7 +594,7 @@ class howtos(object):
         print results
 
 
-    def addHowto(self, name, keywords, contents=None, format='rst', edit=False, author=None):
+    def addHowto(self, name, keywords, contents=None, format='rst', edit=False, author=None, hId=None):
         """
         Add new howto entry. By default, with basic contents.
 
@@ -560,7 +614,9 @@ class howtos(object):
         keywords = keywords.strip().strip(',').split(',')
         if not contents:  contents = BASE_CONTENTS % ({'title': name, 'sub': sub})
 
-        id = self.db.newHowto(name, keywords, contents, author=author)
+        if not hId:  hId = name.replace(' ', '-').replace(',', '').replace(':', '').lower()
+
+        id = self.db.newHowto(name, keywords, contents, hId, author=author)
 
         if edit:  
             if format == 'rst':  self.edit(id, name, contents=contents, format=format)
@@ -623,6 +679,29 @@ class howtos(object):
     def changeName(self, id, name):
         self.mylog('changeName %s %s' % (id, name))
         self.db.update(id, {'name': name})
+        self.output(id)
+
+
+    def changeLink(self, id, hId):
+
+        err = False
+
+        if not linkPattern.match(hId):
+            err = True
+            errmsg = "\nERROR: updating hId ('%s' for docId=%s): does not fit allowed format '%s'" % (id, hId, linkFormat)
+
+        if self.db.getHowtoHId(hId):
+            err = True
+            errmsg = "\nERROR: updating hId ('%s' for docId=%s): hId already used in DB" % (id, hId)
+
+        if err:
+            print "Status: 400 Bad Request"
+            print "Content-type: text/html\n"
+            print (errmsg)
+            return
+
+        self.mylog('changeLink %s %s' % (id, hId))
+        self.db.update(id, {'hId': hId})
         self.output(id)
 
 
@@ -724,23 +803,30 @@ class howtos(object):
 
 ### MAIN ### 
 
+# Get URI
+url = os.environ["REQUEST_URI"] 
+
 # Get cgi values
 args = cgi.FieldStorage()
 id = args.getvalue('id')
 msg  = args.getvalue('msg')
 format = args.getvalue('format')
 if format == None:  format = 'html'
-title  = args.getvalue('titleFilter')
-kword  = args.getvalue('kwordFilter')
-Nkword  = args.getvalue('NkwordFilter')
+title  = args.getvalue('tf')
+kword  = args.getvalue('kwf')
+Nkword  = args.getvalue('Nkwf')
 
-body   = args.getvalue('bodyFilter')
+body   = args.getvalue('bf')
 filtOp  = args.getvalue('filtOp')
 action = args.getvalue('action')
 howtoName = args.getvalue('howtoName')
 #addHowto  = args.getvalue('addHowto')
 #changeKwords  = args.getvalue('changeKwords')
 name = args.getvalue('name')
+hId = args.getvalue('hId')
+# If a path like howtos/whatever is used, consider 'whatever' to be a hId
+if not hId and (not 'cgi-bin' in url) and (not '?' in url) and ('/howtos/' in url):
+    hId = url.split('/howtos/')[1]
 keywords = args.getvalue('keywords')
 replace = args.getvalue('replace')
 contents = args.getvalue('contents')
@@ -756,7 +842,8 @@ qfClicked = args.getvalue('qfClicked')
 # Run the main method that returns the html result
 howto = howtos()
 if link:
-    howto.output(titleFilter=link, direct=True)
+#    howto.output(tf=link, direct=True)
+    howto.output(kwf=link, Nkwf=Nkword, qfClicked=qfClicked, direct=True)
 elif action == 'addHowto':
     howto.addHowto(howtoName, keywords, contents=contents, author=author)
 elif action == 'editNewHowto':
@@ -767,6 +854,8 @@ elif action == 'changeKwords':
     howto.changeKwords(id, keywords, replace)
 elif action == 'changeName':
     howto.changeName(id, name)
+elif action == 'changeLink':
+    howto.changeLink(id, hId)
 elif action == 'changeCreator':
     howto.changeCreator(id, author)
 elif action == 'save':
@@ -775,9 +864,11 @@ elif action == 'remove':
     howto.removeHowtos(id)
 elif action == 'getFrecList':
     howto.getFrecList(filtOp)
+elif action == 'getMeta':
+    howto.getMeta(id, longl=longl)
 
 else:
     howto.output(id, title, kword, body, filtOp, format, action, direct=direct, longl=longl, 
-                 NkwordFilter=Nkword, qfClicked=qfClicked)
-#                 NkwordFilter=Nkword, quickFilters=qf)
+                 Nkwf=Nkword, qfClicked=qfClicked, hId=hId)
+#                 Nkwf=Nkword, quickFilters=qf)
 

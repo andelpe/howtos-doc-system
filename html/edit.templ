@@ -55,7 +55,7 @@ textarea {
     
     // Define function of the reset button (reload contents, set 'clean')
     $("#resetButton").click(function(){
-       $.get("/cgi-bin/howtos/howtos.py",
+       $.get("/howtos",
          {format: "rst", id: "%(id)s"},
          function(data){
              clean = 1;
@@ -69,7 +69,7 @@ textarea {
 
     // Define function of the cancel button: go to view this page
     $("#cancelButton").click(function(){
-        location.href="/cgi-bin/howtos/howtos.py?id=%(id)s";
+        location.href="/howtos?id=%(id)s";
     });
 
     // Define function of the save button (send title and contents to save form)
@@ -81,7 +81,7 @@ textarea {
           // If codemirror worked, use it, otherwise textarea
           try{        var thecontents = myCodeMirror.getValue(); }
           catch(err){ var thecontents = $('#editArea').val();    }
-          $.post("/cgi-bin/howtos/howtos.py",
+          $.post("/howtos",
             {action: "save", id: "%(id)s", contents: thecontents, format: "%(format)s"},
             function(data){
 //              alert("Saved"); 

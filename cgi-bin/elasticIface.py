@@ -1,6 +1,7 @@
 from __future__ import print_function, division
 
 from datetime import datetime
+#from elasticsearch_dsl import DocType, Text, Date, Integer, Q
 import elasticsearch_dsl as es
 from elasticsearch_dsl.connections import connections
 import os, sys
@@ -8,17 +9,19 @@ from utils import err, shell
 from optparse import OptionParser
 from functools import reduce
 
-indexName = 'howtosv6'
+#indexName = 'howtosv6'
+indexName = 'howtos'
 indexType = 'howto'
 class Howto(es.Document):
     name = es.Text(fields={'raw': es.Keyword()})
-    keywords = es.Keyword()
+    keywords = es.Text(fields={'raw': es.Keyword()})
+    hId = es.Text(fields={'keyword': es.Keyword()})
     rstTime = es.Date()
     htmlTime = es.Date()
     markdownTime = es.Date()
     twikiTime = es.Date()
     pdfTime = es.Date()
-    rst = es.Text(analyzer='snowball')
+    rst = es.Text(analyzer='standard')
     html = es.Text(index=False)
     markdown = es.Text(index=False)
     twiki = es.Text(index=False)
@@ -65,8 +68,8 @@ class ElasticIface(object):
         self.created = True
 
 
-    def newHowto(self, name, keywords, rst, author=None):
-        howto = Howto(name=name, keywords=keywords, rst=rst, creator=author, lastUpdater=author)
+    def newHowto(self, name, keywords, rst, hId, author=None):
+        howto = Howto(name=name, keywords=keywords, hId=hId, rst=rst, creator=author, lastUpdater=author)
         howto.save()
         return howto.meta.id
 
@@ -83,6 +86,7 @@ class ElasticIface(object):
         for howto in results:
             print('name:', howto.name)
             print('_id:', howto.meta.id)
+            print('hId:', howto.hId)
             print('rst:', howto.rst.split('\n')[0])
             print('rstTime:', howto.rstTime)
             print('kwords:', howto.keywords)
@@ -95,16 +99,30 @@ class ElasticIface(object):
         return Howto.get(id=id)
 
 
+    def getHowtoHId(self, hId):
+        s = Howto.search()
+#        s = s.query(es.Q({'match': {'hId.raw': hId}}))
+        s = s.query(es.Q({'regexp': {'hId.keyword': hId}}))
+        res = s.execute()
+        if len(res) == 1:
+            return res[0]
+        elif len(res)>1 : 
+            raise Exception('Unexpected! More than one HowTo maching!')
+        else:
+            return None
+
+
     def getHowtoList(self, idList):
+        return Howto.mget(idList, missing='skip')
 
-        res = []
-        for id in idList:
-            try:
-                res.append(Howto.get(id=id))
-            except:
-                pass
-
-        return res
+#        res = []
+#        for id in idList:
+#            try:
+#                res.append(Howto.get(id=id))
+#            except:
+#                pass
+#
+#        return res
 
 
     def getHowtoByName(self, name):
@@ -145,8 +163,10 @@ class ElasticIface(object):
             names = kwords
 
         queries = []
-        for name in names:        queries.append(es.Q({'regexp': {'name.raw': '.*'+name+'.*'}}))
-        for kword in kwords:      queries.append(es.Q('regexp', keywords='.*'+kword+'.*'))
+#        for name in names:        queries.append(es.Q({'regexp': {'name.raw': '.*'+name+'.*'}}))
+        for name in names:        queries.append(es.Q('match', name=name))
+        for kword in kwords:      queries.append(es.Q({'regexp': {'keywords.raw': '.*'+kword+'.*'}}))
+#        for kword in kwords:      queries.append(es.Q('match', keywords=kword))
         for content in contents:  queries.append(es.Q('match', rst=content))
 
         Nqueries = []
@@ -164,7 +184,7 @@ class ElasticIface(object):
 
         s = Howto.search()
         s = s.sort('name.raw')
-        s = s.params(size=100)
+        s = s.params(size=500)
 
         expr = Nexpr = None
         if queries:   
