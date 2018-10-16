@@ -4,6 +4,7 @@ from datetime import datetime
 #from elasticsearch_dsl import DocType, Text, Date, Integer, Q
 import elasticsearch_dsl as es
 from elasticsearch_dsl.connections import connections
+from elasticsearch.exceptions import NotFoundError
 import os, sys
 from utils import err, shell
 from optparse import OptionParser
@@ -96,7 +97,10 @@ class ElasticIface(object):
 
 
     def getHowto(self, id):
-        return Howto.get(id=id)
+        try:
+            return Howto.get(id=id)
+        except NotFoundError:
+            return None
 
 
     def getHowtoHId(self, hId):

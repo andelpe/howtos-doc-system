@@ -275,15 +275,23 @@ class howtos(object):
 #            result.append({'name': row.name, 'id': row.meta.id, 'kwords': ','.join(row.keywords), 'version': row._version})
 
 
-    def getMeta(self, id, longl=False):
+    def getMeta(self, docId, isHid=False, longl=False):
         """
         Produce a json of the doc with specified id.
         """
-        doc = self.db.getHowto(id)
-        elem = self._getMeta(doc, longl)
+        if isHid:  doc = self.db.getHowtoHId(docId)
+        else:      doc = self.db.getHowto(docId)
 
-        print "Content-type: application/json\n" 
-        print json.dumps(elem)
+        if doc:  
+            elem = self._getMeta(doc, longl)
+            print "Content-type: application/json\n" 
+            print json.dumps(elem)
+
+        else:    
+            print "Status: 400 Bad Request"
+            print "Content-type: text/html\n"
+            errmsg = "No element matching specified id/hId %s" % docId
+            print (errmsg)
 
 
     def list(self, rows, longl=False):
@@ -866,6 +874,8 @@ elif action == 'getFrecList':
     howto.getFrecList(filtOp)
 elif action == 'getMeta':
     howto.getMeta(id, longl=longl)
+elif action == 'getMetaHId':
+    howto.getMeta(hId, isHid=True, longl=longl)
 
 else:
     howto.output(id, title, kword, body, filtOp, format, action, direct=direct, longl=longl, 
