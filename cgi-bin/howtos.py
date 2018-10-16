@@ -147,20 +147,21 @@ class howtos(object):
         return self.cache.lrange('recentKwords', 0, numKwords)
 
 
-    def getPage(self, id=None, hId=None, format='html'):
+    def getPage(self, docId=None, hId=None, format='html'):
         """
         Get a Howto and return it as text/html/twiki.
         """
-        self.mylog("In getPage: %s %s %s" % (id, hId, format))
+        self.mylog("In getPage: %s %s %s" % (docId, hId, format))
         try:
             # Here we get the RST contents from ES, in Unicode type
             # Thus, we'd better encode them before passing to shell for HTML/twiki.. production
 
-            if id:    
-                mypage = self.db.getHowto(id)
+            if docId:    
+                mypage = self.db.getHowto(docId)
             elif hId: 
                 mypage = self.db.getHowtoHId(hId)
-                id = mypage.meta.id
+                docId = mypage.meta.id
+                mypage = self.db.getHowto(docId)
             else: 
                 raise Exception('Error in getPage: No id/hId provided')
 
@@ -168,26 +169,26 @@ class howtos(object):
 #            self.mylog("MYPAGE: %s" % mypage)
 
             # Add the page to the caches 
-            self.cache.lrem('recentDocs', 1, id)
-            self.cache.lpush('recentDocs', id)
+            self.cache.lrem('recentDocs', 1, docId)
+            self.cache.lpush('recentDocs', docId)
             self.cache.ltrim('recentDocs', 0, numRecent)
-            self.cache.zincrby('commonDocs', id, amount=1)
+            self.cache.zincrby('commonDocs', docId, amount=1)
            
             if format in ('md', 'markdown'):
 
                 # Check if Markdown field is there and is up-to-date. If not, produce it and store it
                 if ('markdown' not in mypage) or ('markdownTime' not in mypage) or (mypage.markdownTime < mypage.rstTime):
                     out = shell(rst2mdown + ' -', input=mypage.rst.encode('utf-8'))
-                    self.db.update(id, {'markdown': out, 'markdownTime': datetime.now()})
-                    mypage = self.db.getHowto(id)
+                    self.db.update(docId, {'markdown': out, 'markdownTime': datetime.now()})
+                    mypage = self.db.getHowto(docId)
 
             if format == 'html':
 
                 # Check if HTML field is there and is up-to-date. If not, produce it and store it
                 if (not mypage.html) or (not mypage.htmlTime) or (mypage.htmlTime < mypage.rstTime):
                     out = shell(rst2html + ' -', input=mypage.rst.encode('utf-8'))
-                    self.db.update(id, {'html': out, 'htmlTime': datetime.now()})
-                    mypage = self.db.getHowto(id)
+                    self.db.update(docId, {'html': out, 'htmlTime': datetime.now()})
+                    mypage = self.db.getHowto(docId)
 
             elif format == 'twiki':
 
@@ -195,8 +196,8 @@ class howtos(object):
                 if ('twiki' not in mypage) or ('twikiTime' not in mypage) or (mypage.twikiTime < mypage.rstTime):
 #                    self.mylog("Going into Twiki production")
                     out = shell(rst2twiki + ' -', input=mypage.rst.encode('utf-8'))
-                    self.db.update(id, {'twiki': out, 'twikiTime': datetime.now()})
-                    mypage = self.db.getHowto(id)
+                    self.db.update(docId, {'twiki': out, 'twikiTime': datetime.now()})
+                    mypage = self.db.getHowto(docId)
 
             elif format == 'pdf':
 
@@ -207,9 +208,9 @@ class howtos(object):
                     # Apparently PDF is produced in latin-1, so it's easier to store it in DB in latin-1
                     # (otherwise failures happen...). When storing in the DB, we explicitely 
                     # convert to unicode to indicate that latin-1 should be used to decode
-                    self.db.update(id, {'pdf': unicode(out, encoding='latin-1'), 'pdfTime': datetime.now()})
+                    self.db.update(docId, {'pdf': unicode(out, encoding='latin-1'), 'pdfTime': datetime.now()})
                     self.mylog("....After DB update")
-                    mypage = self.db.getHowto(id)
+                    mypage = self.db.getHowto(docId)
 
 
             # Add the associated keywords to the caches
@@ -236,9 +237,9 @@ class howtos(object):
         cont = 0
         for row in rows:
             title = row.name
-            id = row.meta.id
-            if (not id in self.privatePages):
-                    mylink = 'href="/howtos?id=%s' % id
+            docId = row.meta.id
+            if (not docId in self.privatePages):
+                    mylink = 'href="/howtos?id=%s' % docId
                     if (cont % 4) == 0: text += '\n<tr>'
                     text += '\n<td>'
                     text += '<a class="howtoLink" %s">%s</a>' % (mylink, title)
@@ -275,11 +276,11 @@ class howtos(object):
 #            result.append({'name': row.name, 'id': row.meta.id, 'kwords': ','.join(row.keywords), 'version': row._version})
 
 
-    def getMeta(self, docId, isHid=False, longl=False):
+    def getMeta(self, docId, isHId=False, longl=False):
         """
         Produce a json of the doc with specified id.
         """
-        if isHid:  doc = self.db.getHowtoHId(docId)
+        if isHId:  doc = self.db.getHowtoHId(docId)
         else:      doc = self.db.getHowto(docId)
 
         if doc:  
@@ -381,7 +382,7 @@ class howtos(object):
         return text % map
 
 
-    def output(self, id=None, tf=[], kwf=[], bf=[], filtOp=None,
+    def output(self, docId=None, tf=[], kwf=[], bf=[], filtOp=None,
                format='html', action='show', direct=False, longl=False, 
                Nkwf=[], qfClicked="NULL", hId=None):
 #               Nkwf=[], quickFilters={}):
@@ -416,7 +417,6 @@ class howtos(object):
             Nkwf = ['ops']
         Nkwf = sanitizeList(Nkwf)
 
-
         if not filtOp:  filtOp = '$and'
 
         if qfClicked and (qfClicked != "NULL"):
@@ -437,7 +437,7 @@ class howtos(object):
             self.list(rows, longl=longl)
 
         # If no id/hId is given, filter the DB
-        elif ((not id) or (id == 'index.html')) and (not hId):
+        elif ((not docId) or (docId == 'index.html')) and (not hId):
 
             # Get matching docs
             rows = self.db.filter(names=tf, kwords=kwf, contents=bf, op=filtOp, Nkwords=Nkwf)
@@ -456,14 +456,14 @@ class howtos(object):
             if hId: 
                 mypage = self.getPage(hId=hId, format=format)
             else:
-                mypage = self.getPage(id=id, format=format)
+                mypage = self.getPage(docId=docId, format=format)
 
             if not mypage: 
                 self.show(fname=ERROR_PAGE, format=format)
                 return 5
 
             if action == 'edit':
-                self.edit(id, title=mypage.name, format=format)
+                self.edit(docId, title=mypage.name, format=format)
             else:
                 self.show(mypage, format=format, title=mypage.name)
 
@@ -583,19 +583,19 @@ class howtos(object):
 
 
 
-    def edit(self, id, title='', contents='', format='rst'):
+    def edit(self, docId, title='', contents='', format='rst'):
         """
         Shows an editor page for the specified file name.
         """
-        self.mylog('edit %s, %s, %s' % (id, title, format))
+        self.mylog('edit %s, %s, %s' % (docId, title, format))
 
         if format == 'md':  format = 'markdown'
         if format != 'markdown':  format = 'rst'
 
         print "Content-type: text/html\n"
-        if not contents:  contents = getattr(self.getPage(id=id, format=format), format)
+        if not contents:  contents = getattr(self.getPage(docId=docId, format=format), format)
 
-        params = {'contents': contents, 'title': title, 'id': id, 'format': format}
+        params = {'contents': contents, 'title': title, 'id': docId, 'format': format}
         results = self.loadFile(editTempl) % params
         results = results.encode('UTF-8')
 
@@ -624,14 +624,14 @@ class howtos(object):
 
         if not hId:  hId = name.replace(' ', '-').replace(',', '').replace(':', '').lower()
 
-        id = self.db.newHowto(name, keywords, contents, hId, author=author)
+        docId = self.db.newHowto(name, keywords, contents, hId, author=author)
 
         if edit:  
-            if format == 'rst':  self.edit(id, name, contents=contents, format=format)
-            else:                self.edit(id, name, format=format)
+            if format == 'rst':  self.edit(docId, name, contents=contents, format=format)
+            else:                self.edit(docId, name, format=format)
         else:     
             print "Content-type: application/json\n"
-            print json.dumps({'id': id})
+            print json.dumps({'id': docId})
 
     
     def removeHowtos(self, ids):
@@ -641,10 +641,10 @@ class howtos(object):
         if type(ids) != list:  ids = [ids]
 
         names = []
-        for id in ids:
-            self.mylog('delete %s' % id)
-            names.append(self.db.getHowto(id).name + ('  (%s)' % id))
-            self.db.deleteHowto(id)
+        for docId in ids:
+            self.mylog('delete %s' % docId)
+            names.append(self.db.getHowto(docId).name + ('  (%s)' % docId))
+            self.db.deleteHowto(docId)
 
         out = self.loadFile(delTempl)
         print "Content-type: text/html\n"
@@ -669,38 +669,38 @@ class howtos(object):
             return 
 
         names = []
-        for id in ids:
-            doc = self.db.getHowto(id)
+        for docId in ids:
+            doc = self.db.getHowto(docId)
             if replace == 'yes':
                 kwdList = newKwds
             else:
                 kwdList = doc.keywords
                 kwdList.extend(newKwds)
-            self.db.update(id, {'keywords': kwdList})
-            names.append(doc.name + ('  (%s)' % id))
+            self.db.update(docId, {'keywords': kwdList})
+            names.append(doc.name + ('  (%s)' % docId))
 
             out = self.loadFile(updateKTempl)
             print "Content-type: text/html\n"
             print out % {'hlist': '\n<br/>'.join(names)}
 
 
-    def changeName(self, id, name):
-        self.mylog('changeName %s %s' % (id, name))
-        self.db.update(id, {'name': name})
-        self.output(id)
+    def changeName(self, docId, name):
+        self.mylog('changeName %s %s' % (docId, name))
+        self.db.update(docId, {'name': name})
+        self.output(docId)
 
 
-    def changeLink(self, id, hId):
+    def changeLink(self, docId, hId):
 
         err = False
 
         if not linkPattern.match(hId):
             err = True
-            errmsg = "\nERROR: updating hId ('%s' for docId=%s): does not fit allowed format '%s'" % (id, hId, linkFormat)
+            errmsg = "\nERROR: updating hId ('%s' for docId=%s): does not fit allowed format '%s'" % (docId, hId, linkFormat)
 
         if self.db.getHowtoHId(hId):
             err = True
-            errmsg = "\nERROR: updating hId ('%s' for docId=%s): hId already used in DB" % (id, hId)
+            errmsg = "\nERROR: updating hId ('%s' for docId=%s): hId already used in DB" % (docId, hId)
 
         if err:
             print "Status: 400 Bad Request"
@@ -708,9 +708,9 @@ class howtos(object):
             print (errmsg)
             return
 
-        self.mylog('changeLink %s %s' % (id, hId))
-        self.db.update(id, {'hId': hId})
-        self.output(id)
+        self.mylog('changeLink %s %s' % (docId, hId))
+        self.db.update(docId, {'hId': hId})
+        self.output(docId)
 
 
     def changeCreator(self, ids, author):
@@ -722,15 +722,15 @@ class howtos(object):
             self.output(ids)
 
         else:
-            for id in ids:
-                self.db.update(id, {'creator': author})
+            for docId in ids:
+                self.db.update(docId, {'creator': author})
 
             out = self.loadFile(updateKTempl)
             print "Content-type: text/html\n"
             print out % {'hlist': '\n<br/>'.join(ids)}
 
 
-    def save(self, id, contents, format="rst", version=None, author=None):
+    def save(self, docId, contents, format="rst", version=None, author=None):
         """
         Save the passed contents on the specified page (if must have been created
         beforehand). The format must be either 'rst' (default) or 'markdown'. If the
@@ -742,7 +742,7 @@ class howtos(object):
 
         If 'author' is specified, it will be stored in the DB as last updater of the doc.
         """
-        self.mylog('save id=%s, fmt=%s, vers=%s, author=%s' % (id, format, version, author))
+        self.mylog('save docId=%s, fmt=%s, vers=%s, author=%s' % (docId, format, version, author))
 
         tnow = datetime.now()
 
@@ -772,18 +772,18 @@ class howtos(object):
         except Exception, ex:
             print "Status: 400 Bad Request"
             print "Content-type: text/html\n"
-            print ("\nERROR: when saving %s:  **cannot parse ReST code**\n\n%s" % (id, ex)).replace('Output:', '\n\nOutput:\n')
+            print ("\nERROR: when saving %s:  **cannot parse ReST code**\n\n%s" % (docId, ex)).replace('Output:', '\n\nOutput:\n')
             return
 
         try:
 #            self.mylog('save params = %s' % (params.keys()))
-            self.db.update(id, params, version)
+            self.db.update(docId, params, version)
             print "Content-type: text/html\n"
             print "OK"
         except Exception, ex:
             print "Status: 409 Conflict"
             print "Content-type: text/html\n"
-            print "ERROR when saving %s: %s" % (id, ex)
+            print "ERROR when saving %s: %s" % (docId, ex)
 #        else:
 #            print "Content-type: text/html\n\n"
 #            print "ERROR when saving %s: can't find page" % (pageName)
@@ -816,7 +816,7 @@ url = os.environ["REQUEST_URI"]
 
 # Get cgi values
 args = cgi.FieldStorage()
-id = args.getvalue('id')
+docId = args.getvalue('id')
 msg  = args.getvalue('msg')
 format = args.getvalue('format')
 if format == None:  format = 'html'
@@ -859,26 +859,26 @@ elif action == 'editNewHowto':
     if format == 'html':  format = 'rst'
     howto.addHowto(howtoName, keywords, format=format, edit=True)
 elif action == 'changeKwords':
-    howto.changeKwords(id, keywords, replace)
+    howto.changeKwords(docId, keywords, replace)
 elif action == 'changeName':
-    howto.changeName(id, name)
+    howto.changeName(docId, name)
 elif action == 'changeLink':
-    howto.changeLink(id, hId)
+    howto.changeLink(docId, hId)
 elif action == 'changeCreator':
-    howto.changeCreator(id, author)
+    howto.changeCreator(docId, author)
 elif action == 'save':
-    howto.save(id, contents, format, version=version, author=author)
+    howto.save(docId, contents, format, version=version, author=author)
 elif action == 'remove':
-    howto.removeHowtos(id)
+    howto.removeHowtos(docId)
 elif action == 'getFrecList':
     howto.getFrecList(filtOp)
 elif action == 'getMeta':
-    howto.getMeta(id, longl=longl)
+    howto.getMeta(docId, longl=longl)
 elif action == 'getMetaHId':
-    howto.getMeta(hId, isHid=True, longl=longl)
+    howto.getMeta(hId, isHId=True, longl=longl)
 
 else:
-    howto.output(id, title, kword, body, filtOp, format, action, direct=direct, longl=longl, 
+    howto.output(docId, title, kword, body, filtOp, format, action, direct=direct, longl=longl, 
                  Nkwf=Nkword, qfClicked=qfClicked, hId=hId)
 #                 Nkwf=Nkword, quickFilters=qf)
 
