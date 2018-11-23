@@ -30,16 +30,12 @@ from fixcols import fixcols
 
 
 ### CONSTANTS ####
-BASEDIR = '/var/www/html/howtos'
+configFile = '/etc/howtos.json'
+BASEDIR = '/var/www/html/howto'
 CGIDIR = '/var/www/cgi-bin/howtos'
 howtoDir = os.path.join(BASEDIR, 'data')
 newDir = os.path.join(BASEDIR, 'new')
 privateHowtos = os.path.join(howtoDir, '.private')
-showTempl = os.path.join(BASEDIR, 'show.templ')
-editTempl = os.path.join(BASEDIR, 'edit.templ')
-iniTempl  = os.path.join(BASEDIR, 'ini.templ')
-delTempl = os.path.join(BASEDIR, 'deleted.templ')
-updateKTempl = os.path.join(BASEDIR, 'updateK.templ')
 
 REDIS_SOCKET = '/run/redis/redis.sock'
 
@@ -72,12 +68,12 @@ QuickFilterNKeys = ('ops',)
 linkFormat = "^[a-zA-Z0-9._\-]*$"
 linkPattern = re.compile(linkFormat)
 
+
 ### FUNCTIONS ####
 
 
 ### CLASSES ###
 class howtos(object):
-
 
     def __init__(self, logfile='/var/log/howtos'):
         """
@@ -93,7 +89,35 @@ class howtos(object):
 
         # Prepare logfile
         self.mylogf = open(logfile, 'a')
+
+        # Default config
+        self.c = {
+            'readOnly': False,
+            'showTempl': os.path.join(BASEDIR, 'show.templ'),
+            'iniTempl':  os.path.join(BASEDIR, 'ini.templ'),
+            'editTempl': os.path.join(BASEDIR, 'edit.templ'),
+            'delTempl': os.path.join(BASEDIR, 'deleted.templ'),
+            'updateKTempl': os.path.join(BASEDIR, 'updateK.templ')
+        }
+        # Update with whatever is in the config file
+        try:
+            fconf = open(configFile)
+            self.c.update(json.load(fconf))
+        except Exception, inst:
+            if os.path.isfile(configFile):
+                self.mylogf.write('%s WARNING: could not load config file %s: %s\n' 
+                        % (time.strftime('%Y-%m-%d %H:%M:%S'), configFile, inst))
         
+        # Update some settings based on the config
+        if self.c['readOnly']:
+
+            def prependRO(f):
+                return os.path.join(os.path.dirname(f), 'RO_' + os.path.basename(f))
+
+            self.c['showTempl'] = prependRO(self.c['showTempl'])
+            self.c['iniTempl']  = prependRO(self.c['iniTempl'])
+            self.c['editTempl'] = self.c['updateKTempl'] = self.c['delTempl'] = os.path.join(BASEDIR, 'ReadOnlyError.templ')
+
         # Connect to mongoDB
         self.db = ElasticIface()
 
@@ -172,23 +196,30 @@ class howtos(object):
             self.cache.lrem('recentDocs', 1, docId)
             self.cache.lpush('recentDocs', docId)
             self.cache.ltrim('recentDocs', 0, numRecent)
-            self.cache.zincrby('commonDocs', docId, amount=1)
+            self.cache.zincrby('commonDocs', amount=1, value=docId)
            
             if format in ('md', 'markdown'):
 
                 # Check if Markdown field is there and is up-to-date. If not, produce it and store it
                 if ('markdown' not in mypage) or ('markdownTime' not in mypage) or (mypage.markdownTime < mypage.rstTime):
                     out = shell(rst2mdown + ' -', input=mypage.rst.encode('utf-8'))
-                    self.db.update(docId, {'markdown': out, 'markdownTime': datetime.now()})
-                    mypage = self.db.getHowto(docId)
+                    if self.c['readOnly']:
+                        mypage.markdown = out
+                    else:
+                        self.db.update(docId, {'markdown': out, 'markdownTime': datetime.now()})
+                        mypage = self.db.getHowto(docId)
 
             if format == 'html':
 
                 # Check if HTML field is there and is up-to-date. If not, produce it and store it
                 if (not mypage.html) or (not mypage.htmlTime) or (mypage.htmlTime < mypage.rstTime):
                     out = shell(rst2html + ' -', input=mypage.rst.encode('utf-8'))
-                    self.db.update(docId, {'html': out, 'htmlTime': datetime.now()})
-                    mypage = self.db.getHowto(docId)
+                    if self.c['readOnly']:
+                        mypage.html = out
+                        mypage.htmlTime = datetime.now()
+                    else:
+                        self.db.update(docId, {'html': out, 'htmlTime': datetime.now()})
+                        mypage = self.db.getHowto(docId)
 
             elif format == 'twiki':
 
@@ -196,8 +227,11 @@ class howtos(object):
                 if ('twiki' not in mypage) or ('twikiTime' not in mypage) or (mypage.twikiTime < mypage.rstTime):
 #                    self.mylog("Going into Twiki production")
                     out = shell(rst2twiki + ' -', input=mypage.rst.encode('utf-8'))
-                    self.db.update(docId, {'twiki': out, 'twikiTime': datetime.now()})
-                    mypage = self.db.getHowto(docId)
+                    if self.c['readOnly']:
+                        mypage.twiki = out
+                    else:
+                        self.db.update(docId, {'twiki': out, 'twikiTime': datetime.now()})
+                        mypage = self.db.getHowto(docId)
 
             elif format == 'pdf':
 
@@ -208,17 +242,19 @@ class howtos(object):
                     # Apparently PDF is produced in latin-1, so it's easier to store it in DB in latin-1
                     # (otherwise failures happen...). When storing in the DB, we explicitely 
                     # convert to unicode to indicate that latin-1 should be used to decode
-                    self.db.update(docId, {'pdf': unicode(out, encoding='latin-1'), 'pdfTime': datetime.now()})
-                    self.mylog("....After DB update")
-                    mypage = self.db.getHowto(docId)
-
+                    if self.c['readOnly']:
+                        mypage.pdf = unicode(out, encoding='latin-1')
+                    else:
+                        self.db.update(docId, {'pdf': unicode(out, encoding='latin-1'), 'pdfTime': datetime.now()})
+                        self.mylog("....After DB update")
+                        mypage = self.db.getHowto(docId)
 
             # Add the associated keywords to the caches
             for kword in mypage.keywords:
                 self.cache.lrem('recentKwords', 1, kword)
                 self.cache.lpush('recentKwords', kword)
                 self.cache.ltrim('recentKwords', 0, numRecent)
-                self.cache.zincrby('commonKwords', kword, amount=1)
+                self.cache.zincrby('commonKwords', amount=1, value=kword)
 
             # All OK
             return mypage
@@ -324,7 +360,7 @@ class howtos(object):
         
         baseNKword = """<input type="text" size="17" class="Nfilter" name="Nkwf" value="%s" >"""
         
-        text = self.loadFile(iniTempl)
+        text = self.loadFile(self.c['iniTempl'])
 
         def createText(mylist, buttonText, baseText):
             if not mylist:  mylist = [""]
@@ -514,7 +550,7 @@ class howtos(object):
         else:                
             try:
                 print contents.encode('utf-8')
-            except UnicodeDecodeError as inst:
+            except UnicodeDecodeError, inst:
                 print contents.encode('latin-1')
 
 
@@ -579,7 +615,7 @@ class howtos(object):
         params['commonKwords'] = commonKwdOpts
 
         # Output results
-        return self.loadFile(showTempl) % params
+        return self.loadFile(self.c['showTempl']) % params
 
 
 
@@ -589,6 +625,10 @@ class howtos(object):
         """
         self.mylog('edit %s, %s, %s' % (docId, title, format))
 
+        if  self.c['readOnly']:  
+            self.mylog("ERROR: cannot 'edit' in RO mode. Ignoring.")
+            return
+
         if format == 'md':  format = 'markdown'
         if format != 'markdown':  format = 'rst'
 
@@ -596,7 +636,7 @@ class howtos(object):
         if not contents:  contents = getattr(self.getPage(docId=docId, format=format), format)
 
         params = {'contents': contents, 'title': title, 'id': docId, 'format': format}
-        results = self.loadFile(editTempl) % params
+        results = self.loadFile(self.c['editTempl']) % params
         results = results.encode('UTF-8')
 
         print results
@@ -609,6 +649,11 @@ class howtos(object):
         If 'author' is specified, it'll be stored in DB as creator and last updater of the doc.
         """
         self.mylog('add -- %s -- %s' % (name, keywords))
+
+        if  self.c['readOnly']:  
+            self.mylog("ERROR: cannot 'addHowto' in RO mode. Ignoring.")
+            return
+
         page = self.db.getHowtoByName(name)
 
         # If the page exists already, abort
@@ -638,6 +683,10 @@ class howtos(object):
         """
         Removes specified HowTos.
         """
+        if  self.c['readOnly']:  
+            self.mylog("ERROR: cannot 'removeHowtos' in RO mode. Ignoring.")
+            return
+
         if type(ids) != list:  ids = [ids]
 
         names = []
@@ -646,13 +695,18 @@ class howtos(object):
             names.append(self.db.getHowto(docId).name + ('  (%s)' % docId))
             self.db.deleteHowto(docId)
 
-        out = self.loadFile(delTempl)
+        out = self.loadFile(self.c['delTempl'])
         print "Content-type: text/html\n"
         print out % {'hlist': '\n<br/>'.join(names)}
 
 
     def changeKwords(self, ids, keywords, replace='yes'):
+
         self.mylog('changeKwords %s, replace: %s' % (ids, replace))
+
+        if  self.c['readOnly']:  
+            self.mylog("ERROR: cannot 'changeKwords' in RO mode. Ignoring.")
+            return
 
         newKwds = keywords.strip().strip(',').split(',')
 
@@ -679,18 +733,27 @@ class howtos(object):
             self.db.update(docId, {'keywords': kwdList})
             names.append(doc.name + ('  (%s)' % docId))
 
-            out = self.loadFile(updateKTempl)
+            out = self.loadFile(self.c['updateKTempl'])
             print "Content-type: text/html\n"
             print out % {'hlist': '\n<br/>'.join(names)}
 
 
     def changeName(self, docId, name):
+
+        if  self.c['readOnly']:  
+            self.mylog("ERROR: cannot 'changeName' in RO mode. Ignoring.")
+            return
+
         self.mylog('changeName %s %s' % (docId, name))
         self.db.update(docId, {'name': name})
         self.output(docId)
 
 
     def changeLink(self, docId, hId):
+
+        if  self.c['readOnly']:  
+            self.mylog("ERROR: cannot 'changeLink' in RO mode. Ignoring.")
+            return
 
         err = False
 
@@ -717,6 +780,10 @@ class howtos(object):
 
         self.mylog('changeCreator %s %s' % (ids, author))
 
+        if  self.c['readOnly']:  
+            self.mylog("ERROR: cannot 'changeCreator' in RO mode. Ignoring.")
+            return
+
         if type(ids) != list:  
             self.db.update(ids, {'creator': author})
             self.output(ids)
@@ -725,7 +792,7 @@ class howtos(object):
             for docId in ids:
                 self.db.update(docId, {'creator': author})
 
-            out = self.loadFile(updateKTempl)
+            out = self.loadFile(self.c['updateKTempl'])
             print "Content-type: text/html\n"
             print out % {'hlist': '\n<br/>'.join(ids)}
 
@@ -743,6 +810,10 @@ class howtos(object):
         If 'author' is specified, it will be stored in the DB as last updater of the doc.
         """
         self.mylog('save docId=%s, fmt=%s, vers=%s, author=%s' % (docId, format, version, author))
+
+        if  self.c['readOnly']:  
+            self.mylog("ERROR: cannot 'save' in RO mode. Ignoring.")
+            return
 
         tnow = datetime.now()
 
@@ -828,8 +899,6 @@ body   = args.getvalue('bf')
 filtOp  = args.getvalue('filtOp')
 action = args.getvalue('action')
 howtoName = args.getvalue('howtoName')
-#addHowto  = args.getvalue('addHowto')
-#changeKwords  = args.getvalue('changeKwords')
 name = args.getvalue('name')
 hId = args.getvalue('hId')
 # If a path like howtos/whatever is used, consider 'whatever' to be a hId
@@ -849,36 +918,42 @@ qfClicked = args.getvalue('qfClicked')
 
 # Run the main method that returns the html result
 howto = howtos()
+#howto.mylogf.write('config: %s\n' % howto.c)
+defaultAction = False
 if link:
-#    howto.output(tf=link, direct=True)
     howto.output(kwf=link, Nkwf=Nkword, qfClicked=qfClicked, direct=True)
-elif action == 'addHowto':
-    howto.addHowto(howtoName, keywords, contents=contents, author=author)
-elif action == 'editNewHowto':
-    if not howtoName: howto.output(None)
-    if format == 'html':  format = 'rst'
-    howto.addHowto(howtoName, keywords, format=format, edit=True)
-elif action == 'changeKwords':
-    howto.changeKwords(docId, keywords, replace)
-elif action == 'changeName':
-    howto.changeName(docId, name)
-elif action == 'changeLink':
-    howto.changeLink(docId, hId)
-elif action == 'changeCreator':
-    howto.changeCreator(docId, author)
-elif action == 'save':
-    howto.save(docId, contents, format, version=version, author=author)
-elif action == 'remove':
-    howto.removeHowtos(docId)
 elif action == 'getFrecList':
     howto.getFrecList(filtOp)
 elif action == 'getMeta':
     howto.getMeta(docId, longl=longl)
 elif action == 'getMetaHId':
     howto.getMeta(hId, isHId=True, longl=longl)
-
+elif not howto.c['readOnly']: 
+    if action == 'addHowto':
+        howto.addHowto(howtoName, keywords, contents=contents, author=author)
+    elif action == 'editNewHowto':
+        if not howtoName: howto.output(None)
+        if format == 'html':  format = 'rst'
+        howto.addHowto(howtoName, keywords, format=format, edit=True)
+    elif action == 'changeKwords':
+        howto.changeKwords(docId, keywords, replace)
+    elif action == 'changeName':
+        howto.changeName(docId, name)
+    elif action == 'changeLink':
+        howto.changeLink(docId, hId)
+    elif action == 'changeCreator':
+        howto.changeCreator(docId, author)
+    elif action == 'save':
+        howto.save(docId, contents, format, version=version, author=author)
+    elif action == 'remove':
+        howto.removeHowtos(docId)
+    else:
+        defaultAction = True
 else:
+    defaultAction = True
+
+if defaultAction:
+#    howto.mylogf.write('Going for default action (output)\n')
     howto.output(docId, title, kword, body, filtOp, format, action, direct=direct, longl=longl, 
                  Nkwf=Nkword, qfClicked=qfClicked, hId=hId)
-#                 Nkwf=Nkword, quickFilters=qf)
 

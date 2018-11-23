@@ -58,7 +58,7 @@ class ElasticIface(object):
 
     def __init__(self, verb=False):
         # Define a default Elasticsearch client
-        connections.create_connection(hosts=['localhost'])
+        connections.create_connection(hosts=['gaer0012', 'pcaepuppet'])
         self.verb = verb
         self.created = Howto.exists()
 
@@ -117,6 +117,7 @@ class ElasticIface(object):
 
 
     def getHowtoList(self, idList):
+        if not idList:  return []
         return Howto.mget(idList, missing='skip')
 
 #        res = []

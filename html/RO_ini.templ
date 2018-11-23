@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+
+<HTML>
+
+<HEAD>
+
+<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+
+<script>
+
+ function myalert(){  alert("ALERT");  }   
+
+ var tf = "<input type=\"text\" class=\"filter\"   name=\"tf\" size=20 value=" 
+ var kwf = "<input type=\"text\" class=\"filter\"   name=\"kwf\" size=20 value=" 
+ var Nkwf = "<input type=\"text\" class=\"Nfilter\" name=\"Nkwf\" size=17 value=" 
+ var bf  = "<input type=\"text\" class=\"filter\" name=\"bf\" size=19 value=\"\" >" 
+
+ function addTf() {
+   $("#tf").html($("#tf").html() + "<br/>" + tf + "\"\" >");
+ }
+ function addKwf() {
+   $("#kwf").html($("#kwf").html() + "<br/>" + kwf + "\"\" >");
+ }
+ function addNkwf() {
+   $("#Nkwf").html($("#Nkwf").html() + "<br/>" + Nkwf + "\"\" >");
+ }
+ function addAndSubmit(func, value) {
+   func(value); 
+   $("#filterForm").submit();
+ }
+ function valAndSubmit(value) {
+   $("#qfClicked").val(value); 
+   $("#filterForm").submit();
+ }
+ function addBf() {
+   $("#bf").html($("#bf").html() + "<br/>" + bf);
+ }
+ function addKword(value){
+   $("#newKwords").val(value + ',' + $("#newKwords").val());
+ }
+
+ function validateForm() {
+    if ($("#newHowto").val() == "") {
+        alert("Add HowTo:\n\n  HowTo name must be filled out");
+        return false;
+    }
+    if ($("#newKwords").val() == "") {
+        alert("Add HowTo:\n\n  Please introduce at least one keyword");
+        return false;
+    }
+ }
+
+</script>
+
+
+<style type="text/css">
+ body {
+  background-color: WhiteSmoke ;
+  font-family: Arial, sans-serif;
+  font-size: 110%%;
+  margin-left: 65px;
+  margin-right: 65px;
+ }
+ .maintittle{
+  color: white;
+  text-decoration: none;
+ }
+ .filter{
+  background-color: LightGreen;
+ }
+ .Nfilter{
+  background-color: Yellow;
+ }
+ [pressed="False"]{
+  background-color: LightGray;
+ }
+ [pressed="True"]{
+  background-color: DarkGray;
+ }
+ .add{
+ background-color: Orange;
+ }
+ .readonly{
+  background-color: yellow;
+   color: red;
+   font-size: 25px;
+   font-weight: bold;
+ }
+ .howtoLink{
+  text-decoration: none;
+  font-size: 95%%;
+ }
+ .smLink{
+  text-decoration: none;
+  font-size: 65%%;
+  color: black;
+ }
+ .smLink2{
+  text-decoration: none;
+  font-size: 85%%;
+  color: black;
+ }
+ .mylabel{
+  text-align: center;
+  font-size: 80%%;
+  color: red;
+ }
+ .myqf{
+  font-size: 80%%;
+  color: blue;
+ }
+ .plusbutton{
+  padding: 0px 0px;
+  height:30px;
+  width:15px;
+  font-size: 20px;
+ }
+/* input[type="button"]:focus{background-color:red;} */
+ .linkbutton{
+   height:27px;
+   font-size: 13px;
+   font-weight: bold;
+ }
+ tr{
+   line-height: 14px;
+ }
+ form, input{
+   font-family: monospace;
+ }
+ h1.title {
+   text-align: center;
+   background-color: #444499;
+   color: white;
+   font-size: 200%%;
+ }
+/* Add some styles for hover menus */
+
+/* The container <div> - needed to position the dropdown content */
+.dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+/* Dropdown Content (Hidden by Default) */
+.dropdown-content {
+    display: none;
+    position: absolute;
+    background-color: #f9f9f9;
+/*     min-width: 160px; */
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+}
+
+/* Links inside the dropdown */
+.dropdown-content a {
+    color: black;
+/*     padding: 12px 16px; */
+    text-decoration: none;
+    display: block;
+}
+
+/* Change color of dropdown links on hover */
+.dropdown-content a:hover {background-color: #f1f1f1}
+
+/* Show the dropdown menu on hover */
+.dropdown:hover .dropdown-content {display: block;}
+ 
+</style>
+
+</HEAD>
+
+<BODY>
+
+<!--<center> <input class="linkbutton" type="button" value="HOME" onclick="location.href='/howtos';"> </center>-->
+<h1 class="title"><a class="maintittle" href="/howtos">HowTo's</a></h1>
+
+<center>
+<table width="100%%">
+
+<tr>
+<td width="69%%">
+<form action="/howtos" method="get" id="filterForm">
+
+<table>
+<tr>
+
+<td valign="top">
+  Title filter:
+  <span id="tf">
+  %(tf)s
+  </span>
+  <br/> 
+</td>
+
+<td valign="top">
+  Kword filter:
+  <span id="kwf">
+  %(kwf)s
+  </span>
+  <br/> 
+</td>
+
+<td valign="top">
+  Kword exclude:   
+  <span id="Nkwf">
+  %(Nkwf)s
+  </span>
+  <br/> 
+</td>
+
+<td valign="top">
+  Contents filter: 
+  <span id="bf">
+  %(bf)s
+  </span>
+  <br/> 
+</td>
+
+<tr>
+<td colspan="2">
+  <br/>
+  <center>
+  %(baseFilt)s
+  &emsp;
+  <input type="submit" name="filter" class="filter" value="Apply filter(s)">
+  &emsp; 
+  </center>
+</td>
+</tr>
+
+<tr>
+<td colspan="3">
+<!--<span class="mylabel">Quick filters:</span>-->
+<br/>
+<b>Quick filters:</b><br/>
+<!--<input type="hidden" name="qfClicked" id="qfClicked" value="N_ops">-->
+<input type="hidden" name="qfClicked" id="qfClicked" value="NULL">
+ <input type="button" class="myqf" pressed="%(qf_ops)s" value="Add ops" onclick="valAndSubmit('ops')"> 
+ <input type="button" class="myqf" pressed="%(qf_N_ops)s" value="Excl ops" onclick="valAndSubmit('N_ops')"> 
+ &emsp; &emsp; 
+ <input type="button" class="myqf"  pressed="%(qf_dcache)s" value="dcache" onclick="valAndSubmit('dcache')"> 
+ <input type="button" class="myqf"  pressed="%(qf_monitor)s" value="monitor" onclick="valAndSubmit('monitor')"> 
+ <input type="button" class="myqf"  pressed="%(qf_htcondor)s" value="htcondor" onclick="valAndSubmit('htcondor')"> 
+ <input type="button" class="myqf"  pressed="%(qf_network)s" value="network" onclick="valAndSubmit('network')"> 
+
+</td>
+</tr>
+
+
+</table>
+
+</form> 
+</td>
+<td>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+<span class="readonly">
+READ-ONLY 
+</span>
+<br/> <br/> 
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+<span class="readonly">
+VERSION
+</span>
+<br/> <br/> <br/>
+</td>
+
+
+</tr>
+
+
+<tr>
+<td colspan="3">
+<table width="100%%">
+%(recent)s
+%(common)s
+%(list)s
+</table>
+</td>
+</tr>
+</table>
+</center>
+
+</BODY>
+
+</HTML>

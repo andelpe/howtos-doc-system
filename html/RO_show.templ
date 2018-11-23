@@ -1,0 +1,135 @@
+%(pre)s
+
+<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script>
+ window.onload = function() {
+   $("#goButton").click(function(){
+      location.href = '/howtos?kwf=' + $("#quickSearch").val();
+   }); // end of goButton function
+
+   $("#quickSearch").on("keypress", function(e){
+     if(e.keyCode == 13){
+      location.href = '/howtos?kwf=' + $("#quickSearch").val();
+     }
+   }); // end of quickSearch function
+
+
+ } // end of window.onload
+
+</script>
+
+<style type="text/css">
+.linkbutton{
+//<!--  padding: 3px 3px;-->
+  height:27px;
+  font-size: 13px;
+  font-weight: bold;
+ }
+.editbutton{
+//  padding: 0px 0px;
+  height:27px;
+  font-size: 13px;
+  color: red;
+  font-weight: bold;
+ }
+.readonly{
+  background-color: yellow;
+  color: red;
+  font-size: 25px;
+  font-weight: bold;
+}
+</style>
+
+</HEAD>
+
+<BODY>
+
+<table class="whole" style="table-layout: fixed; width: 100%%;">
+
+<!-- This colgroup things defines the widths for body and attribs later -->
+<colgroup>
+  <col style="width: auto;">
+  <col style="width: 8cm;">
+</colgroup>
+
+<tr class="whole">
+<td class="whole">
+%(docline)s
+<center> 
+ <div class="linkbutton">
+   <div class="dropdown">
+     <button class="linkbutton">Format</button>
+     <div class="dropdown-content">
+       <a href="/howtos?id=%(id)s&format=rst">Rst</a>
+       <a href="/howtos?id=%(id)s&format=markdown">Markdown</a>
+       <a href="/howtos?id=%(id)s&format=twiki">Twiki</a>
+       <a href="/howtos?id=%(id)s&format=pdf">PDF</a>
+     </div>
+   </div> &emsp; &emsp; &emsp; &emsp; 
+   <input type="button" class="linkbutton" value="HOME" onclick="location.href='/howtos';">  
+   &emsp; &emsp; &emsp; &emsp;
+   <div class="dropdown">
+     <div class="readonly">
+     READ-ONLY
+     </div>
+   </div>
+ </div>
+
+</center>
+
+</td>
+
+<td class="whole">
+ <div  class="linkbutton">
+   Quick search: <br/>  
+   <input id="quickSearch" type="text" class="filter"  name="quickSearch" size=22 value="">
+   <button class="linkbutton" id="goButton">Go</button>
+ </div>
+</td>
+
+</tr>
+
+<tr class="whole">
+<td class="whole">
+
+%(most)s
+
+</td>
+
+<td class="meta">
+<p class="topic-title first">&nbsp; Name:</p>
+<div id="name"> 
+&emsp; &emsp;  %(title)s
+</div>
+<p class="topic-title first">&nbsp; Keywords: </p>
+<div id="keywords"> 
+<ul>
+%(kwordList)s
+<!--<li>some keyword here</li>-->
+</ul>
+</div>
+<p class="topic-title first">&nbsp; Human link (<i>hId</i>): </p>
+<div id="link"> 
+&emsp; &emsp;  <a href="/howtos/%(hId)s">%(hId)s</a>
+</div>
+<p class="topic-title first">&nbsp; Attributes:</p>
+<ul>
+<li>Id: &nbsp;%(id)s</li>
+<li>Version: &nbsp;%(version)s</li>
+<div id="creator"> 
+<li>Creator: &nbsp;%(creator)s </li>
+</div>
+<li>Last updater: &nbsp;%(lastUpdater)s</li>
+<br/>
+<li>Change time: &nbsp;%(changeTime)s</li>
+<li>HTML time: &nbsp;%(htmlTime)s</li>
+<li>ReST size: &nbsp;%(rstSize)s chars</li>
+<li>HTML size: &nbsp;%(htmlSize)s chars</li>
+</ul>
+</td>
+
+</tr>
+</table>
+
+</BODY>
+</HTML>
