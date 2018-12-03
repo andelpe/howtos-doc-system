@@ -136,3 +136,15 @@ hr.footer{
 /* Show the dropdown menu on hover */
 .dropdown:hover .dropdown-content {display: block;}
 
+/* Support hide/show toggle */
+.toggle .header {
+    display: block;
+    clear: both;
+}
+.toggle .header:after {
+    content: " ▼";
+}
+.toggle .header.open:after {
+    content: " ▲";
+}
+
