@@ -1,3 +1,3 @@
 #!/bin/bash
 
-/usr/bin/rst2pdf "$@" -
+sed 's#.. figure:: /#.. figure:: http://localhost/#' | /usr/bin/rst2pdf --default-dpi=220 "$@" -
