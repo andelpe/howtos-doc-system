@@ -90,7 +90,38 @@
          $("#link").html("&emsp; &emsp;  <a href=\"/howtos/%(hId)s\">%(hId)s</a>");
       });
    
-   }); // end of editName.click
+   }); // end of editLink.click
+
+   $("#showReSTLink").click(function(){
+      $("#linkReST").html("\
+        <pre id=restLink>\
+`HowTo doc anchor`_\n\
+\n\
+.. _`HowTo doc anchor`: /howtos/%(hId)s\
+</pre>\
+      <button id=\"hideReSTLink\">Close</button>\
+      <p>\
+      "
+      ) ;
+
+      $("#hideReSTLink").click(function(){ $("#linkReST").html(""); });
+
+/* The following does not work yet... 
+ *
+      <button id=\"copyReSTLink\">Copy & close</button>\
+      $("#copyReSTLink").click(function(){ 
+           t = document.createElement('textarea');
+           t.textContent = document.getElementById("restLink").textContent;
+           document.body.append(t); 
+           t.select();
+           document.execCommand("copy");
+           $("#linkReST").html("");
+           t.html("");
+      });
+ *
+ */      
+   
+   }); // end of showReSTLink.click
 
    $("#editCreator").click(function(){
       $("#creator").html("\
@@ -224,9 +255,9 @@
 </ul>
 </div>
 <p class="topic-title first">&nbsp; Human link (<i>hId</i>): &ensp; <a id="editLink"><font size="4" color="red">Edit</font></a></p>
-<div id="link"> 
-&emsp; &emsp;  <a href="/howtos/%(hId)s">%(hId)s</a>
-</div>
+<div id="link"> &emsp; &emsp;  <a href="/howtos/%(hId)s">%(hId)s</a> </div>
+<div id="linkReST"></div>
+&emsp; &emsp;  <a id="showReSTLink"><font size="2" color="red">Show ReST Link</font></a></p>
 <p class="topic-title first">&nbsp; Attributes:</p>
 <ul>
 <li>Id: &nbsp;%(id)s</li>
@@ -240,6 +271,8 @@
 <li>HTML time: &nbsp;%(htmlTime)s</li>
 <li>ReST size: &nbsp;%(rstSize)s chars</li>
 <li>HTML size: &nbsp;%(htmlSize)s chars</li>
+<!--<br/>-->
+<!--<li>Private: &nbsp;%(private)s</li>-->
 </ul>
 </td>
 

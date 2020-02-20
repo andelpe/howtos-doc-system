@@ -27,6 +27,13 @@ em, i {
   font-family: Times New Roman, Times, serif;
 }
 
+/* General pre-formatted HTML (for meta information) */
+pre {
+  color:Darkred;
+  background-color:LightBlue;
+  overflow:auto
+}
+
 /* Normal literal blocks and inlines (no ..code directive) */
 pre.literal-block {
   color:Darkred;
