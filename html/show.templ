@@ -100,26 +100,25 @@
 .. _`HowTo doc anchor`: /howtos/%(hId)s\
 </pre>\
       <button id=\"hideReSTLink\">Close</button>\
+      <button id=\"copyReSTLink\">Copy & close</button>\
       <p>\
       "
       ) ;
 
       $("#hideReSTLink").click(function(){ $("#linkReST").html(""); });
 
-/* The following does not work yet... 
- *
-      <button id=\"copyReSTLink\">Copy & close</button>\
       $("#copyReSTLink").click(function(){ 
+          /* The following only works when using https */
+          /*   navigator.clipboard.writeText(document.getElementById("restLink").textContent); */
+          /* So we'll use the long old way... */
            t = document.createElement('textarea');
-           t.textContent = document.getElementById("restLink").textContent;
-           document.body.append(t); 
+           t.value = document.getElementById("restLink").textContent;
+           document.body.appendChild(t); 
            t.select();
            document.execCommand("copy");
+           document.body.removeChild(t);
            $("#linkReST").html("");
-           t.html("");
       });
- *
- */      
    
    }); // end of showReSTLink.click
 
