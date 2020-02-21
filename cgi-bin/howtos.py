@@ -273,9 +273,11 @@ class howtos(object):
         cont = 0
         for row in rows:
             title = row.name
-            docId = row.meta.id
+#            docId = row.meta.id
+            hId = row.hId
             if (not docId in self.privatePages):
-                    mylink = 'href="/howtos?id=%s' % docId
+#                    mylink = 'href="/howtos?id=%s' % docId
+                    mylink = 'href="/howtos/%s' % hId
                     if (cont % 4) == 0: text += '\n<tr>'
                     text += '\n<td>'
                     text += '<a class="howtoLink" %s">%s</a>' % (mylink, title)
@@ -582,6 +584,7 @@ class howtos(object):
         else:                         params['version'] = ''
         params['creator'] = page.creator
         params['lastUpdater'] = page.lastUpdater
+        params['private'] = page.private
 
 
         # Contents
