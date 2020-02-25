@@ -31,7 +31,7 @@
           Kwords: <input type=\"text\" class=\"add\" id=\"newkwords\" name=\"keywords\" value=\"%(kwords)s\"/>\
           <br/>(comma-separated) \
           <div class=\"dropdown\">\
-            <button onclick=\"return false;\">+</button>\
+            <button onclick=\"return false;\"> + </button>\
             <div class=\"dropdown-content\">\
                %(commonKwords)s\
             </div>\
@@ -71,6 +71,49 @@
    
    }); // end of editName.click
 
+   $("#addLink").click(function(){
+      $("#files").html("\
+        <form action=\"/howtos\" method=\"post\">\
+          <input type=\"hidden\" name=\"id\" value=\"%(id)s\"/>\
+          <input type=\"hidden\" name=\"action\" value=\"addFileLink\"/>\
+          Filename: <input type=\"text\" class=\"add\" name=\"fname\" value=\"\"/>\
+          <br/> \
+          <center>\
+          <input type=\"button\" id=\"cancelAddFile\" class=\"add\" value=\"Cancel\" />\
+          <input type=\"submit\" name=\"addFileLink\" class=\"add\" value=\"Add\" />\
+          </center>\
+        </form>\
+      "
+      ) ;
+
+      $("#cancelAddFile").click(function(){
+         $("#files").html("");
+      });
+   
+   }); // end of addLink.click
+
+   $("#delLink").click(function(){
+      $("#files").html("\
+        <font color=\"red\">Please, confirm deletion of link to file</font><br/>'"+$(this).attr("linkToDel")+"'\
+        <form action=\"/howtos\" method=\"post\">\
+          <input type=\"hidden\" name=\"id\" value=\"%(id)s\"/>\
+          <input type=\"hidden\" name=\"action\" value=\"delFileLink\"/>\
+          <input type=\"hidden\" class=\"del\" name=\"fname\" value=\""+$(this).attr("linkToDel")+"\"/>\
+          <br/> \
+          <center>\
+          <input type=\"button\" id=\"cancelDelLink\" class=\"add\" value=\"Cancel\" />\
+          <input type=\"submit\" name=\"delFileLink\" class=\"add\" value=\"Confirm\" />\
+          </center>\
+        </form>\
+      "
+      ) ;
+
+      $("#cancelDelLink").click(function(){
+         $("#files").html("");
+      });
+   
+   }); // end of delLink.click
+
    $("#editLink").click(function(){
       $("#link").html("\
         <form action=\"/howtos\" method=\"post\">\
@@ -87,7 +130,7 @@
       ) ;
 
       $("#cancelEditLink").click(function(){
-         $("#link").html("&emsp; &emsp;  <a href=\"/howtos/%(hId)s\">%(hId)s</a>");
+         $("#link").html("&emsp; &emsp; <font size=\"3\"> <a href=\"/howtos/%(hId)s\">%(hId)s</a></font>");
       });
    
    }); // end of editLink.click
@@ -254,12 +297,13 @@
 </ul>
 </div>
 <p class="topic-title first">&nbsp; Human link (<i>hId</i>): &ensp; <a id="editLink"><font size="4" color="red">Edit</font></a></p>
-<div id="link"> &emsp; &emsp;  <a href="/howtos/%(hId)s">%(hId)s</a> </div>
+<div id="link"> &emsp; &emsp;  <font size="3"> <a href="/howtos/%(hId)s">%(hId)s</a> </font> </div>
 <div id="linkReST"></div>
-&emsp; &emsp;  <a id="showReSTLink"><font size="2" color="red">Show ReST Link</font></a></p>
+&emsp; &emsp; &emsp; &emsp; &emsp; <a id="showReSTLink"><font size="2" color="red">Show ReST Link</font></a></p>
+
 <p class="topic-title first">&nbsp; Attributes:</p>
 <ul>
-<li>Id: &nbsp;%(id)s</li>
+<li>Id: &nbsp;<a href="/howtos?id=%(id)s">%(id)s</a></li>
 <li>Version: &nbsp;%(version)s</li>
 <div id="creator"> 
 <li>Creator: &nbsp;%(creator)s &ensp; <a id="editCreator"><font color="red"><b>Edit</b></font></a></li>
@@ -273,6 +317,20 @@
 <!--<br/>-->
 <!--<li>Private: &nbsp;%(private)s</li>-->
 </ul>
+
+<!--<p class="topic-title first">&nbsp; Linked files: &ensp; <a id="addFile"><font size="4" color="red">Add Link</font></a></p>-->
+<p class="topic-title first">&nbsp; Linked files:</p>
+<div id="files"> 
+</div>
+<ul>
+%(files)s
+<!--<li>some files here</li>-->
+</ul>
+&emsp; 
+<a id="addLink"><font size="3" color="red">Add Link</font></a>
+<!--&emsp; -->
+<!--<a id="uploadFile"><font size="3" color="red">Upload file</font></a>-->
+
 </td>
 
 </tr>

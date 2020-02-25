@@ -33,6 +33,7 @@ from fixcols import fixcols
 configFile = '/etc/howtos.json'
 BASEDIR = '/var/www/html/howto'
 CGIDIR = '/var/www/cgi-bin/howtos'
+LINKED_FILES_DIR = '/var/www/html/howto/files'
 howtoDir = os.path.join(BASEDIR, 'data')
 newDir = os.path.join(BASEDIR, 'new')
 privateHowtos = os.path.join(howtoDir, '.private')
@@ -306,6 +307,8 @@ class howtos(object):
             elem['creator'] = doc.creator
             elem['lastUpdater'] = doc.lastUpdater
             elem['rstTime'] = doc.rstTime.strftime('%Y-%m-%d %H:%M')
+            if not doc.files:  elem['files'] = ''
+            else:              elem['files'] = ','.join(doc.files)
             if not doc.hId:  elem['hId'] = 'UNASSIGNED'
             else:            elem['hId'] = doc.hId
 
@@ -575,6 +578,15 @@ class howtos(object):
         else:  
             params['hId'] = page.hId
 
+        # Linked files
+        if (not hasattr(page, 'files')) or (not page.files):  
+            params['files'] = '' 
+        else:  
+#            flink = '/howto/pics/'
+            ftext = '<li><a href="/howto/files/%s">%s</a>&emsp;'
+            ftext += '<a id="delLink" linkToDel="%s"><font size="3" color="red">X</font></a></li>'
+            params['files'] = '\n'.join([ftext % (x, x, x) for x in page.files])
+
         # Metadata
         params['changeTime'] = page.rstTime.strftime('%Y-%m-%d %H:%M')
         params['htmlTime']  = page.htmlTime.strftime('%Y-%m-%d %H:%M')
@@ -741,6 +753,50 @@ class howtos(object):
             print out % {'hlist': '\n<br/>'.join(names)}
 
 
+    def delFileLink(self, docId, fname):
+
+        if  self.c['readOnly']:  
+            self.mylog("ERROR: cannot 'delFileLink' in RO mode. Ignoring.")
+            return
+
+        self.mylog('In delFileLink: %s %s' % (docId, fname))
+
+        files = self.db.getHowto(docId).files
+        if files is None:  files = []
+#        self.mylog('addFileLink - files: %s' % files)
+        
+        if fname in files:  files.remove(fname)
+        self.db.update(docId, {'files': files})
+
+        self.output(docId)
+
+
+    def addFileLink(self, docId, fname):
+
+        if  self.c['readOnly']:  
+            self.mylog("ERROR: cannot 'addFileLink' in RO mode. Ignoring.")
+            return
+
+        self.mylog('In addFileLink: %s %s' % (docId, fname))
+
+        try:
+            os.stat(os.path.join(LINKED_FILES_DIR, fname))
+        except OSError:
+            print "Status: 400 Bad Request"
+            print "Content-type: text/html\n"
+            print "\nERROR: linked file not found in server's files dir. Please, upload file!"
+            return
+
+        files = self.db.getHowto(docId).files
+        if files is None:  files = []
+#        self.mylog('addFileLink - files: %s' % files)
+        
+        files.extend([fname])
+        self.db.update(docId, {'files': files})
+
+        self.output(docId)
+
+
     def changeName(self, docId, name):
 
         if  self.c['readOnly']:  
@@ -904,6 +960,7 @@ action = args.getvalue('action')
 howtoName = args.getvalue('howtoName')
 name = args.getvalue('name')
 hId = args.getvalue('hId')
+fname = args.getvalue('fname')
 # If a path like howtos/whatever is used, consider 'whatever' to be a hId
 if not hId and (not 'cgi-bin' in url) and (not '?' in url) and ('/howtos/' in url):
     hId = url.split('/howtos/')[1]
@@ -950,6 +1007,10 @@ elif not howto.c['readOnly']:
         howto.save(docId, contents, format, version=version, author=author)
     elif action == 'remove':
         howto.removeHowtos(docId)
+    elif action == 'addFileLink':
+        howto.addFileLink(docId, fname)
+    elif action == 'delFileLink':
+        howto.delFileLink(docId, fname)
     else:
         defaultAction = True
 else:

@@ -155,3 +155,9 @@ hr.footer{
     content: " ▲";
 }
 
+input[type=submit], input[type=button] {
+ padding: 5px;
+ font-size: 90%;
+ font-weight: bold; 
+ background-color: lightblue;
+}

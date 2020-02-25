@@ -17,6 +17,7 @@ class Howto(es.Document):
     name = es.Text(fields={'raw': es.Keyword()})
     keywords = es.Text(fields={'raw': es.Keyword()})
     hId = es.Text(fields={'keyword': es.Keyword()})
+    files = es.Text(fields={'keyword': es.Keyword()})
     rstTime = es.Date()
     htmlTime = es.Date()
     markdownTime = es.Date()
@@ -30,6 +31,7 @@ class Howto(es.Document):
     chars = es.Integer()
     creator = es.Text()
     lastUpdater = es.Text()
+    private = es.Boolean()
 
     class Index:
         name = indexName
@@ -70,7 +72,8 @@ class ElasticIface(object):
 
 
     def newHowto(self, name, keywords, rst, hId, author=None):
-        howto = Howto(name=name, keywords=keywords, hId=hId, rst=rst, creator=author, lastUpdater=author)
+        howto = Howto(name=name, keywords=keywords, hId=hId, rst=rst, creator=author, lastUpdater=author, 
+                      private=False, files=[])
         howto.save()
         return howto.meta.id
 
@@ -88,6 +91,7 @@ class ElasticIface(object):
             print('name:', howto.name)
             print('_id:', howto.meta.id)
             print('hId:', howto.hId)
+            print('files:', howto.files)
             print('rst:', howto.rst.split('\n')[0])
             print('rstTime:', howto.rstTime)
             print('kwords:', howto.keywords)
@@ -105,7 +109,6 @@ class ElasticIface(object):
 
     def getHowtoHId(self, hId):
         s = Howto.search()
-#        s = s.query(es.Q({'match': {'hId.raw': hId}}))
         s = s.query(es.Q({'regexp': {'hId.keyword': hId}}))
         res = s.execute()
         if len(res) == 1:
