@@ -40,7 +40,7 @@ privateHowtos = os.path.join(howtoDir, '.private')
 
 REDIS_SOCKET = '/run/redis/redis.sock'
 
-rst2html = CGIDIR + '/txt2html/command3.sh'
+rst2html = CGIDIR + '/txt2html/command4.sh'
 rst2twiki = CGIDIR + '/rst2twiki'
 rst2mdown = CGIDIR + '/rst2mdown'
 mdown2rst = CGIDIR + '/mdown2rst'
@@ -582,10 +582,11 @@ class howtos(object):
         if (not hasattr(page, 'files')) or (not page.files):  
             params['files'] = '' 
         else:  
-#            flink = '/howto/pics/'
-            ftext = '<li><a href="/howto/files/%s">%s</a>&emsp;'
-            ftext += '<a id="delLink" linkToDel="%s"><font size="3" color="red">X</font></a></li>'
-            params['files'] = '\n'.join([ftext % (x, x, x) for x in page.files])
+            ftext = '<li><a href="/howto/files/%s">%s</a>&emsp;\n'
+            ftext += '<a class="showReST" anchor="`file anchor`_\n\n.. _`file anchor`:" fname="%s"><font color="blue"><i>L</i></font>&nbsp;\n</a>'
+            ftext += '<a class="showReST" anchor="\n.. figure::" fname="%s"><font color="green"><i>I</i></font>&nbsp;\n</a>'
+            ftext += '<a class="delLink" fname="%s"><font color="red"><i>X</i></font></a></li>'
+            params['files'] = '\n'.join([ftext % (x, x, x, x, x) for x in page.files])
 
         # Metadata
         params['changeTime'] = page.rstTime.strftime('%Y-%m-%d %H:%M')
@@ -751,6 +752,27 @@ class howtos(object):
             out = self.loadFile(self.c['updateKTempl'])
             print "Content-type: text/html\n"
             print out % {'hlist': '\n<br/>'.join(names)}
+
+
+    def filterFileLink(self, fname=None):
+
+        self.mylog('In filterFileLink: %s' % (fname))
+
+        allfiles = os.listdir(LINKED_FILES_DIR)
+        if not fname:  
+            matches = allfiles
+        else:
+            matches = []
+            for f in allfiles:
+                if fname in f:
+                     matches.append(f)
+
+        result = '<select id="fnames">\n'
+        result += '\n'.join(['<option value="%s">%s</option>' % (x,x) for x in matches])
+        result += '\n</select>'
+
+        print "Content-type: text/html\n"
+        print result
 
 
     def delFileLink(self, docId, fname):
@@ -1011,6 +1033,8 @@ elif not howto.c['readOnly']:
         howto.addFileLink(docId, fname)
     elif action == 'delFileLink':
         howto.delFileLink(docId, fname)
+    elif action == 'filterFileLink':
+        howto.filterFileLink(fname)
     else:
         defaultAction = True
 else:

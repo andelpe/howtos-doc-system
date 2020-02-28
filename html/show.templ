@@ -1,6 +1,8 @@
 %(pre)s
 
 <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<!-- // TODO: should use this instead <script type="text/javascript" src="/howto/script/show.js"></script>  -->
+<!-- //       but need to parse python %%()s strings for it to work... sigh... -->
 <script>
  window.onload = function() {
    $("#removeLink").click(function(){
@@ -23,7 +25,7 @@
 //   });
 
    $("#editKwords").click(function(){
-      $("#keywords").html("\
+      $("#kwdsForm").html("\
         <form action=\"/howtos\" method=\"post\">\
           <input type=\"hidden\" name=\"id\" value=\"%(id)s\"/>\
           <input type=\"hidden\" name=\"replace\" value=\"yes\"/>\
@@ -31,7 +33,7 @@
           Kwords: <input type=\"text\" class=\"add\" id=\"newkwords\" name=\"keywords\" value=\"%(kwords)s\"/>\
           <br/>(comma-separated) \
           <div class=\"dropdown\">\
-            <button onclick=\"return false;\"> + </button>\
+            <button onclick=\"return false;\">+</button>\
             <div class=\"dropdown-content\">\
                %(commonKwords)s\
             </div>\
@@ -45,7 +47,8 @@
       ) ;
 
       $("#cancelEditKwords").click(function(){
-         location.href="/howtos?id=%(id)s";
+//         location.href="/howtos/%(hId)s";
+          $("#kwdsForm").html("");        
       });
    
    });
@@ -92,13 +95,13 @@
    
    }); // end of addLink.click
 
-   $("#delLink").click(function(){
+   $(".delLink").click(function(){
       $("#files").html("\
-        <font color=\"red\">Please, confirm deletion of link to file</font><br/>'"+$(this).attr("linkToDel")+"'\
+        <font color=\"red\">Please, confirm deletion of link to file</font><br/>'"+$(this).attr("fname")+"'\
         <form action=\"/howtos\" method=\"post\">\
           <input type=\"hidden\" name=\"id\" value=\"%(id)s\"/>\
           <input type=\"hidden\" name=\"action\" value=\"delFileLink\"/>\
-          <input type=\"hidden\" class=\"del\" name=\"fname\" value=\""+$(this).attr("linkToDel")+"\"/>\
+          <input type=\"hidden\" class=\"del\" name=\"fname\" value=\""+$(this).attr("fname")+"\"/>\
           <br/> \
           <center>\
           <input type=\"button\" id=\"cancelDelLink\" class=\"add\" value=\"Cancel\" />\
@@ -115,7 +118,7 @@
    }); // end of delLink.click
 
    $("#editLink").click(function(){
-      $("#link").html("\
+      $("#hlink").html("\
         <form action=\"/howtos\" method=\"post\">\
           <input type=\"hidden\" name=\"id\" value=\"%(id)s\"/>\
           <input type=\"hidden\" name=\"action\" value=\"changeLink\"/>\
@@ -130,10 +133,39 @@
       ) ;
 
       $("#cancelEditLink").click(function(){
-         $("#link").html("&emsp; &emsp; <font size=\"3\"> <a href=\"/howtos/%(hId)s\">%(hId)s</a></font>");
+         $("#hlink").html("");
       });
    
    }); // end of editLink.click
+
+   $(".showReST").click(function(){
+      $("#files").html("\
+      <pre id=restText>\n"+$(this).attr("anchor")+" /howto/files/"+$(this).attr("fname")+"\
+</pre> &emsp; &emsp;\
+      <input type=\"button\" id=\"hideReST\" value=\"Close\" />\
+      <input type=\"button\" id=\"copyReST\" value=\"Copy & close\" />\
+      <p>\
+      "
+      ) ;
+      
+      $("#hideReST").click(function(){ $("#files").html(""); });
+
+      $("#copyReST").click(function(){ 
+          /* The following only works when using https */
+          /*   navigator.clipboard.writeText(document.getElementById("restText").textContent); */
+          /* So we'll use the long old way... */
+           t = document.createElement('textarea');
+           t.value = document.getElementById("restText").textContent;
+           document.body.appendChild(t); 
+           t.select();
+           document.execCommand("copy");
+           document.body.removeChild(t);
+           $("#files").html("");
+      }); // end of copyReST.click
+
+   }); // end of showReST.click
+
+
 
    $("#showReSTLink").click(function(){
       $("#linkReST").html("\
@@ -141,16 +173,16 @@
 `HowTo doc anchor`_\n\
 \n\
 .. _`HowTo doc anchor`: /howtos/%(hId)s\
-</pre>\
-      <button id=\"hideReSTLink\">Close</button>\
-      <button id=\"copyReSTLink\">Copy & close</button>\
+</pre> &emsp; &emsp;\
+      <input type=\"button\" id=\"hideReST\" value=\"Close\" />\
+      <input type=\"button\" id=\"copyReST\" value=\"Copy & close\" />\
       <p>\
       "
       ) ;
 
-      $("#hideReSTLink").click(function(){ $("#linkReST").html(""); });
+      $("#hideReST").click(function(){ $("#linkReST").html(""); });
 
-      $("#copyReSTLink").click(function(){ 
+      $("#copyReST").click(function(){ 
           /* The following only works when using https */
           /*   navigator.clipboard.writeText(document.getElementById("restLink").textContent); */
           /* So we'll use the long old way... */
@@ -181,7 +213,7 @@
       ) ;
 
       $("#cancelEditCreator").click(function(){
-         $("#creator").html("<li>Creator: &nbsp;%(creator)s</li>");
+         $("#creator").html("");
       });
    
    }); // end of editCreator.click
@@ -212,22 +244,46 @@
 
 </script>
 
-<style type="text/css">
+<style>
+
+/* This shouldn't be here, but we put it until we've got most HTML docs recreated */
+/* with style link */
+
+.showReST, .delLink, #showReSTLink {
+  cursor: pointer;
+}
+
+.modify {
+  color:Red;
+  font-weight: bold; 
+  cursor: pointer;
+  font-size: 135%%;
+}
+
 .linkbutton{
-//<!--  padding: 3px 3px;-->
+/* padding: 3px 3px; */
   height:27px;
   font-size: 13px;
   font-weight: bold;
- }
+}
+
 .editbutton{
-//  padding: 0px 0px;
+/*  padding: 0px 0px; */
   height:27px;
   font-size: 13px;
   color: red;
   font-weight: bold;
- }
-</style>
+}
 
+/* General pre-formatted HTML (for meta information) */
+pre {
+  color:Darkred;
+  background-color:LightBlue;
+  line-height: 110%%;
+  overflow:auto
+}
+
+</style>
 </HEAD>
 
 <BODY>
@@ -285,49 +341,49 @@
 </td>
 
 <td class="meta">
-<p class="topic-title first">&nbsp; Name: &ensp; <a id="editName"><font size="4" color="red">Edit</font></a></p>
+<br/><br/><br/><br/>
+<p>&nbsp; <font class="topic-title first">Name:</font> &ensp; <a class="modify" id="editName">Edit</a></p>
 <div id="name"> 
 &emsp; &emsp;  %(title)s
 </div>
-<p class="topic-title first">&nbsp; Keywords: &ensp; <a id="editKwords"><font size="4" color="red">Edit</font></a></p>
+<p>&nbsp; <font class="topic-title first">Keywords:</font> &ensp; <a class="modify" id="editKwords">Edit</a></p>
+<div id="kwdsForm"> </div> 
 <div id="keywords"> 
-<ul>
-%(kwordList)s
-<!--<li>some keyword here</li>-->
-</ul>
+    <ul>
+    %(kwordList)s
+    <!--<li>some keyword here</li>-->
+    </ul>
 </div>
-<p class="topic-title first">&nbsp; Human link (<i>hId</i>): &ensp; <a id="editLink"><font size="4" color="red">Edit</font></a></p>
-<div id="link"> &emsp; &emsp;  <font size="3"> <a href="/howtos/%(hId)s">%(hId)s</a> </font> </div>
+<p>&nbsp; <font class="topic-title first">Human link (<i>hId</i>):</font> &ensp; <a class="modify" id="editLink">Edit</a></p>
+<div id="hlink"></div>
+&emsp; &emsp;  <font size="3"> <a href="/howtos/%(hId)s">%(hId)s</a> </font>
+&emsp; <a class="clickable" id="showReSTLink"><font color="blue"><i>L</i></font></a></p>
 <div id="linkReST"></div>
-&emsp; &emsp; &emsp; &emsp; &emsp; <a id="showReSTLink"><font size="2" color="red">Show ReST Link</font></a></p>
 
 <p class="topic-title first">&nbsp; Attributes:</p>
 <ul>
-<li>Id: &nbsp;<a href="/howtos?id=%(id)s">%(id)s</a></li>
-<li>Version: &nbsp;%(version)s</li>
-<div id="creator"> 
-<li>Creator: &nbsp;%(creator)s &ensp; <a id="editCreator"><font color="red"><b>Edit</b></font></a></li>
-</div>
-<li>Last updater: &nbsp;%(lastUpdater)s</li>
-<br/>
-<li>Change time: &nbsp;%(changeTime)s</li>
-<li>HTML time: &nbsp;%(htmlTime)s</li>
-<li>ReST size: &nbsp;%(rstSize)s chars</li>
-<li>HTML size: &nbsp;%(htmlSize)s chars</li>
-<!--<br/>-->
-<!--<li>Private: &nbsp;%(private)s</li>-->
+    <li>Id: &nbsp;<a href="/howtos?id=%(id)s">%(id)s</a></li>
+    <li>Version: &nbsp;%(version)s</li>
+    <div id="creator"></div>
+    <li>Creator: &nbsp;%(creator)s &ensp; <a class="modify" id="editCreator"><font size="3"><b>Edit</b></font></a></li>
+    <li>Last updater: &nbsp;%(lastUpdater)s</li>
+    <br/>
+    <li>Change time: &nbsp;%(changeTime)s</li>
+    <li>HTML time: &nbsp;%(htmlTime)s</li>
+    <li>ReST size: &nbsp;%(rstSize)s chars</li>
+    <li>HTML size: &nbsp;%(htmlSize)s chars</li>
+    <!--<br/>-->
+    <!--<li>Private: &nbsp;%(private)s</li>-->
 </ul>
 
-<!--<p class="topic-title first">&nbsp; Linked files: &ensp; <a id="addFile"><font size="4" color="red">Add Link</font></a></p>-->
 <p class="topic-title first">&nbsp; Linked files:</p>
-<div id="files"> 
-</div>
+<div id="files"></div>
 <ul>
-%(files)s
-<!--<li>some files here</li>-->
+    %(files)s
+    <!--<li>some files here</li>-->
 </ul>
 &emsp; 
-<a id="addLink"><font size="3" color="red">Add Link</font></a>
+<a class="modify" id="addLink">Add Link</a>
 <!--&emsp; -->
 <!--<a id="uploadFile"><font size="3" color="red">Upload file</font></a>-->
 

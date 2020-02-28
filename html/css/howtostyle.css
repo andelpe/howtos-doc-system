@@ -1,0 +1,189 @@
+/*
+:Author: Antonio Delgado Peris, CIEMAT.
+:Copyright: This stylesheet has been placed in the public domain.
+
+Stylesheet for use with Docutils for CIEMAT howtos. 
+*/
+
+
+/* CIEMAT HowTo's customizations follow */
+
+/* General properties */
+body {
+ background-color: WhiteSmoke ;
+/* font-family: Arial, sans-serif; */
+ font-family: Times New Roman, Times, serif;
+ width: 33cm;
+ margin-left: 30px;
+ margin-bottom: 40px;
+ line-height: 130%;
+ font-size: 105%
+}
+
+/* Italics in serif fonts */
+em, i {
+  font-family: Times New Roman, Times, serif;
+}
+
+/* General pre-formatted HTML (for meta information) */
+pre {
+  color:Darkred;
+  background-color:LightBlue;
+  line-height: 110%;
+  overflow:auto
+}
+
+.showReST, .delLink, #showReSTLink {
+  cursor: pointer;
+}
+
+.modify {
+  color:Red;
+  font-weight: bold; 
+  cursor: pointer;
+  font-size: 135%;
+}
+
+.linkbutton{
+/* padding: 3px 3px; */
+  height:27px;
+  font-size: 13px;
+  font-weight: bold;
+}
+
+.editbutton{
+/*  padding: 0px 0px; */
+  height:27px;
+  font-size: 13px;
+  color: red;
+  font-weight: bold;
+ }
+
+/* Normal literal blocks and inlines (no ..code directive) */
+pre.literal-block {
+  color:Darkred;
+  background-color:SeaShell;
+  overflow:auto
+}
+
+tt.docutils{
+  font-family:monospace;
+  color:Darkred
+}
+
+/* Auto-generated tables */
+table:not(.whole) { 
+  border: 2px solid black;
+  border-collapse:collapse;
+}
+table.whole {
+}
+tr:nth-child(odd):not(.whole) { background-color:Ivory; }
+tr:nth-child(even):not(.whole) { background-color:LightGray; }
+tr.whole{
+}
+th { background-color:LightBlue; }
+td:not(.whole) {
+ font-family:monospace;
+ color:blue;
+ text-align:center;
+ border: 1px solid Gray; 
+}
+td.meta{
+ vertical-align: top; 
+ padding: 1px;
+ font-size: 85%;
+ border: 0;
+ color:black;
+ font-family: Times New Roman, Times, serif;
+ text-align: left;
+}
+
+/* Do not underline links */
+a{ text-decoration: none; } 
+
+/* Table of contents */
+.topic-title.first{
+ font-weight: bold; 
+ font-size: 140%
+}
+
+/* Headlines */
+h1, h2, h3, h4, h5, h6 {
+  font-family: Helvetica, Arial, sans-serif;
+  padding: 2px;
+}
+a.toc-backref { color: darkblue; }
+h1.title {
+  text-align: center;
+  background-color: #444499;
+  color: white;
+  font-size: 200%;
+}
+h1 {
+  background-color: #bbbbbb;
+  font-size: 140%;
+  border: thin solid black; 
+  padding: 4px;
+  margin-top: 60px;
+}
+h2 {
+  background-color: #dddddd;
+  font-size: 120%;
+  margin-top: 30px;
+}
+
+/* Separate footer */
+hr.footer{
+ margin-top: 60px;
+}
+
+/* Add some styles for hover menus */
+
+/* The container <div> - needed to position the dropdown content */
+.dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+/* Dropdown Content (Hidden by Default) */
+.dropdown-content {
+    display: none;
+    position: absolute;
+    background-color: #f9f9f9;
+/*     min-width: 160px; */
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+}
+
+/* Links inside the dropdown */
+.dropdown-content a {
+    color: black;
+/*     padding: 12px 16px; */
+    text-decoration: none;
+    display: block;
+}
+
+/* Change color of dropdown links on hover */
+.dropdown-content a:hover {background-color: #f1f1f1}
+
+/* Show the dropdown menu on hover */
+.dropdown:hover .dropdown-content {display: block;}
+
+/* Support hide/show toggle */
+.toggle .header {
+    display: block;
+    clear: both;
+}
+.toggle .header:after {
+    content: " ▼";
+}
+.toggle .header.open:after {
+    content: " ▲";
+}
+
+input[type=submit], input[type=button] {
+ padding: 5px;
+ font-size: 90%;
+ font-weight: bold; 
+ background-color: lightblue;
+}
