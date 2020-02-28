@@ -5,7 +5,7 @@ BASEDIR=/var/www/cgi-bin/howtos/txt2html/
 fname="$1"
 
 
-out=$(rst2html -t --stylesheet ${BASEDIR}/mystyle2.css,${BASEDIR}/pygment.css \
+out=$(rst2html -t --no-compact-lists --stylesheet ${BASEDIR}/mystyle2.css,${BASEDIR}/pygment.css \
    $fname 2> /tmp/rst2html.error | sed -e 's#class="upperalpha simple"#type="A"#' \
                                        -e 's#class="loweralpha simple"#type="a"#') 
 
