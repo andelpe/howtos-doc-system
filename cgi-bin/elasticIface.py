@@ -151,7 +151,7 @@ class ElasticIface(object):
 
 
     def filter(self, names=[], kwords=[], contents=[], op='$or', 
-               Nnames=[], Nkwords=[], Ncontents=[]):
+               Nnames=[], Nkwords=[], Ncontents=[], sortKey='name.raw'):
         """ 
         Returns the records matching both the passed name/kword/contents *lists of*
         patterns. 
@@ -191,7 +191,7 @@ class ElasticIface(object):
 #        print(myfunc)
 
         s = Howto.search()
-        s = s.sort('name.raw')
+        s = s.sort(sortKey)
         s = s.params(size=500)
 
         expr = Nexpr = None

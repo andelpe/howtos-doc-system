@@ -235,7 +235,8 @@
 </tr>
 
 <tr>
-<td colspan="3">
+<!--<td colspan="3">-->
+<td>
 <!--<span class="mylabel">Quick filters:</span>-->
 <br/>
 <b>Quick filters:</b><br/>
@@ -243,9 +244,13 @@
 <input type="hidden" name="qfClicked" id="qfClicked" value="NULL">
  <input type="button" class="myqf" pressed="%(qf_ops)s" value="Add ops" onclick="valAndSubmit('ops')"> 
  <input type="button" class="myqf" pressed="%(qf_N_ops)s" value="Excl ops" onclick="valAndSubmit('N_ops')"> 
- &emsp; &emsp; 
+<!-- &emsp; &emsp; -->
+</td>
+<td>
+ <br/><br/>
  <input type="button" class="myqf"  pressed="%(qf_dcache)s" value="dcache" onclick="valAndSubmit('dcache')"> 
  <input type="button" class="myqf"  pressed="%(qf_monitor)s" value="monitor" onclick="valAndSubmit('monitor')"> 
+ <br/>
  <input type="button" class="myqf"  pressed="%(qf_htcondor)s" value="htcondor" onclick="valAndSubmit('htcondor')"> 
  <input type="button" class="myqf"  pressed="%(qf_network)s" value="network" onclick="valAndSubmit('network')"> 
 
@@ -256,7 +261,18 @@
 <!-- <input type="radio" name="qf_ops" value="none" checked>None</input>-->
 <!-- <input type="radio" name="qf_ops" value="only">Select</input>-->
 <!-- <input type="radio" name="qf_ops" value="exclude">Exclude</input>-->
+</td>
 
+<td colspan="2">
+<br/>
+<b>Format:</b>
+<input type="radio" name="longl" value="True"  %(longl_check)s onclick="submit()">Long list</input>
+<input type="radio" name="longl" value="" %(shortl_check)s onclick="submit()">Short</input> 
+<br/>
+<br/>
+<b>Order:</b>&nbsp;
+<input type="radio" name="sortKey" value="name.raw" %(sort_name_check)s onclick="submit()">Name</input>
+<input type="radio" name="sortKey" value="-rstTime" %(sort_time_check)s onclick="submit()">Last change</input> 
 </td>
 </tr>
 

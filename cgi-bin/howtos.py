@@ -266,11 +266,22 @@ class howtos(object):
             return None
 
 
-    def howtoList(self, rows):
+    def howtoList(self, rows, longl=False):
         """
         Return HTML lines for the specified list howto docs.
         """
         text = ''
+        if longl:  
+            text += '<tr>'
+            text += '<td><center>Last updater</center></td>'
+            text += '<td><center>hId</center></td>'
+            text += '<td>Document / keywords</td>'
+            text += '<td><center>Last change</center></td>'
+            text += '<td><center>Vers</center></td>'
+            text += '</tr>'
+            text += '<tr>'
+            text += '<td colspan="5"><hr></td>'
+            text += '</tr>'
         cont = 0
         for row in rows:
             title = row.name
@@ -279,15 +290,30 @@ class howtos(object):
             if (not docId in self.privatePages):
 #                    mylink = 'href="/howtos?id=%s' % docId
                     mylink = 'href="/howtos/%s' % hId
-                    if (cont % 4) == 0: text += '\n<tr>'
+                    if longl: 
+                        elem = self._getMeta(row, longl)
+                        text += '\n<tr>'
+                        text += '\n<td class="mylabel">%s<br/><br/><br/></td>' % elem['lastUpdater']
+                        text += '\n<td class="mylabel">%s<br/><br/><br/></td>' % elem['hId']
+                    else:
+                        if (cont % 4) == 0: text += '\n<tr>'
                     text += '\n<td>'
+                    if longl:  text += '&nbsp;&nbsp;&nbsp;'
                     text += '<a class="howtoLink" %s">%s</a>' % (mylink, title)
-                    text += '&nbsp;&nbsp;&nbsp;<br/>'
+#                    text += '&nbsp;&nbsp;&nbsp;<br/>'
+                    text += '<br/>'
+                    if longl:  text += '&nbsp;&nbsp;&nbsp;'
                     linkList = ['<a class="smLink" href="/howtos?kwf=%s">%s</a>' % (x,x) for x in row.keywords]
-                    text += ' &nbsp;'.join(linkList)
-                    text += '&nbsp;&nbsp;<br/>&nbsp;</td>'
-                    if (cont % 4) == 3: text += '\n</tr>' 
+                    text += '\n &nbsp;'.join(linkList)
+                    text += '&nbsp;&nbsp;<br/><br/>&nbsp;</td>'
+                    if longl: 
+                        text += '\n<td class="mylabel">%s<br/><br/><br/></td>' % elem['rstTime']
+                        text += '\n<td class="mylabel">%s<br/><br/><br/></td>' % elem['version']
+                        text += '\n</tr>' 
+                    else:
+                        if (cont % 4) == 3: text += '\n</tr>' 
                     cont += 1
+
         text += '\n' # <tr><td colspan="4"><hr></td></tr>'
 
         return text
@@ -349,7 +375,8 @@ class howtos(object):
         print json.dumps(result)
 
 
-    def produceIndex(self, rows=None, tf=[], kwf=[], bf=[], filtOp='$and', Nkwf=[]):
+    def produceIndex(self, rows=None, tf=[], kwf=[], bf=[], filtOp='$and', Nkwf=[], 
+                     sortKey='name.raw', longl=False):
         """
         Produce an index page to look for documents.
         """
@@ -374,8 +401,9 @@ class howtos(object):
             return mytext
 
 
-        sectionText = '<tr><td colspan="4"><br/><span class="mylabel">%s</span><hr></td></tr>'
-        mainList = self.howtoList(rows) if rows!=None else self.howtoList(self.db.filter(tf, kwf, bf))
+        colspan = 'colspan="4"'
+        sectionText = '<tr><td '+colspan+'><br/><span class="mylabel">%s</span><hr></td></tr>'
+        mainList = self.howtoList(rows, longl) if rows!=None else self.howtoList(self.db.filter(tf, kwf, bf), longl)
 
         commonKwords = self.getCommonKwords()
         if not (tf or kwf or bf):
@@ -386,7 +414,7 @@ class howtos(object):
             recentList = self.db.getHowtoList(self.getRecentDocs())
             rKwds = ['<a class="smLink2" href="/howtos?kwf=%s">%s</a>' % (x,x) for x in self.getRecentKwords()]
             if rKwds:
-                recentPart += '<tr><td colspan="4">' + ' &nbsp; '.join(rKwds) + '<br/><hr></td></tr>'
+                recentPart += '<tr><td '+colspan+'>' + ' &nbsp; '.join(rKwds) + '<br/><hr></td></tr>'
             if recentList:
                 recentPart += self.howtoList(recentList)
 
@@ -394,7 +422,7 @@ class howtos(object):
             commonPart = sectionText % ('Most visited') 
             cKwds = ['<a class="smLink2" href="/howtos?kwf=%s">%s</a>' % (x,x) for x in commonKwords]
             if cKwds:
-                commonPart += '<tr><td colspan="4">' + ' &nbsp; '.join(cKwds) + '<br/><hr></td></tr>'
+                commonPart += '<tr><td '+colspan+'>' + ' &nbsp; '.join(cKwds) + '<br/><hr></td></tr>'
             if commonList:
                 commonPart += self.howtoList(commonList)
 
@@ -414,6 +442,10 @@ class howtos(object):
             'bf':  createText(bf, 'addBf()', baseBody),
             'common': commonPart, 'recent': recentPart, 'list': mainPart,
             'baseFilt': baseFilt, 'commonKwords': commonKwdOpts,
+            'sort_name_check': 'checked' if sortKey=='name.raw' else '',
+            'sort_time_check': 'checked' if sortKey=='-rstTime' else '',
+            'longl_check': 'checked' if longl else '',
+            'shortl_check': 'checked' if not longl else '',
         }
         for key in (QuickFilterKeys):
             map['qf_'+key] = str(key in kwf)
@@ -425,14 +457,14 @@ class howtos(object):
 
     def output(self, docId=None, tf=[], kwf=[], bf=[], filtOp=None,
                format='html', action='show', direct=False, longl=False, 
-               Nkwf=[], qfClicked="NULL", hId=None):
+               Nkwf=[], qfClicked="NULL", hId=None, sortKey='name.raw'):
 #               Nkwf=[], quickFilters={}):
         """
         Basic method to display the index page (with appropriate filter) or
         a howto page in the specified format, or the edition page, or even a 
         simple info message.
         """
-        self.mylog("In output: %s, %s" % (action, format))
+        self.mylog("In output: %s, %s, %s, %s" % (action, format, sortKey, longl))
 
         def sanitizeList(v):
             """
@@ -472,7 +504,7 @@ class howtos(object):
         if action == 'list':
 
             # Get matching docs
-            rows = self.db.filter(names=tf, kwords=kwf, contents=bf, op=filtOp, Nkwords=Nkwf)
+            rows = self.db.filter(names=tf, kwords=kwf, contents=bf, op=filtOp, Nkwords=Nkwf, sortKey=sortKey)
 
             # Return appropiate json 
             self.list(rows, longl=longl)
@@ -481,7 +513,7 @@ class howtos(object):
         elif ((not docId) or (docId == 'index.html')) and (not hId):
 
             # Get matching docs
-            rows = self.db.filter(names=tf, kwords=kwf, contents=bf, op=filtOp, Nkwords=Nkwf)
+            rows = self.db.filter(names=tf, kwords=kwf, contents=bf, op=filtOp, Nkwords=Nkwf, sortKey=sortKey)
 
             # If only one match (and 'direct' flag), show it directly
             if direct and (len(rows) == 1):
@@ -489,8 +521,8 @@ class howtos(object):
 
             # Else, produce the page showing the complete list
             else:
-                self.show(contents=self.produceIndex(rows, tf, kwf, bf, filtOp, 
-                                                     Nkwf=Nkwf))
+                self.show(contents=self.produceIndex(rows, tf, kwf, bf, filtOp, Nkwf=Nkwf, 
+                                                     sortKey=sortKey, longl=longl))
 
         # Else, we must show a concrete page
         else:
@@ -995,6 +1027,8 @@ version = args.getvalue('version')
 author = args.getvalue('author')
 longl = args.getvalue('longl')
 qfClicked = args.getvalue('qfClicked')
+sortKey = args.getvalue('sortKey')
+if not sortKey: sortKey = 'name.raw'
 #qf_ops = args.getvalue('qf_ops')
 #qf = {'ops': qf_ops}
 
@@ -1043,5 +1077,5 @@ else:
 if defaultAction:
 #    howto.mylogf.write('Going for default action (output)\n')
     howto.output(docId, title, kword, body, filtOp, format, action, direct=direct, longl=longl, 
-                 Nkwf=Nkword, qfClicked=qfClicked, hId=hId)
+                 Nkwf=Nkword, qfClicked=qfClicked, hId=hId, sortKey=sortKey)
 
