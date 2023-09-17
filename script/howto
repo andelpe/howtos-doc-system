@@ -1,0 +1,889 @@
+#!/usr/bin/env python
+
+
+####   IMPORTS   ####
+from __future__ import print_function, division
+import sys, os
+from utils import err, shell, commandError, SimpleConfigParser
+from argparse import ArgumentParser, Action, RawTextHelpFormatter
+import requests, json, tempfile
+from subprocess import call
+
+
+####   NOTES  ####
+
+#
+# Private pages are not supported anymore (at least, for the moment), since we don't know
+# what will happen with the ES database, and who will be able to access it.
+#
+
+# TODO: Hacer algo para soportar mejor los docs cortos? --> No deberia haber problema!
+
+
+####   CONSTANTS   ####
+FORMATS = {
+  'md': '.markdown',
+  'rst': '.rst',
+  'html': '.html',
+  'twiki': '.twiki',
+  'pdf': '.pdf',
+}
+EDIT_FORMATS = ('rst', 'md')
+
+CGI_PATH="/howtos"
+
+# If HOWTO_EDITOR is defined, use it, otherwise try EDITOR. Finally, use 'vim'.
+try: 
+    EDITOR = os.environ['HOWTO_EDITOR']
+except KeyError:
+    try: 
+        EDITOR = os.environ['EDITOR']
+    except KeyError:
+        EDITOR="vim"
+
+# Try HOWTO_PAGER. If not defined, try PAGER. Next, check 'vimpager'. Else, 'less'.
+try: 
+    PAGER = os.environ['HOWTO_PAGER']
+except KeyError:
+    try: 
+        PAGER = os.environ['PAGER']
+    except KeyError:
+        try: 
+            shell("which vimpager >/dev/null 2>&1")
+            PAGER="vimpager"
+        except commandError:
+            PAGER="less"
+
+BASE_TEXT="""TITLE
+*************
+
+.. contents:: Table of Contents
+.. sectnum::
+
+
+Intro
+======
+"""
+
+
+####   FUNCTIONS, CLASSES   ####
+
+def basicExamples():
+    return """
+  Basic examples of 'howto' script usage
+  --------------------------------
+
+  Page a doc from those whose keywords match 'nfs':
+
+    $> howto nfs
+
+
+  Create a new doc (title and keywords are asked interactively):
+
+    $> howto --new
+
+
+  Edit a doc:
+
+    $> howto -e scripttest
+
+
+  List all docs whose keywords match 'python':
+
+    $> howto -l python 
+
+
+  List *details* of all docs whose *contents* match 'python':
+
+    $> howto -lv -c python 
+
+
+  Remove matching doc (after interactive doc selection and confirmation):
+
+    $> howto --rm scripttrash
+"""
+
+def advExamples():
+    return """
+  Advanced examples of 'howto' script usage
+  --------------------------------
+
+  Page a doc from those whose title matches 'nfs':
+
+    $> howto -t nfs
+
+
+  Page a doc from those whose title matches 'nfs' and whose keywords match 'dcache':
+
+    $> howto -t nfs -k dcache
+
+
+  Page a doc whoe Id is 'AV_ixka60zQaheRx55gh':
+
+    $> howto --id AV_ixka60zQaheRx55gh
+
+
+  Page a doc whose hId (part of the human link) is 'puppet-operation':
+
+    $> howto --hid puppet-operation
+
+
+  List docs whose name includes both 'python' *and* 'advanced':
+
+    $> howto -l -t --and python advanced
+
+
+  Create a new doc with name 'This is my test howto' and keywords 'scriptest' and 'info':
+
+    $> howto -n "This is my test howto" -x "scripttest,info"
+
+
+  Dump doc, edit dumped file, then replace doc with new contents:
+
+    $> howto -o /tmp/howto.rst  scripttest  # returns a version number and id
+    $> emacs  /tmp/howto.rst
+    $> howto -i /tmp/howto.rst --id <doc-id> --vers <doc-version> -e
+
+
+  Add some keywords to a doc:
+
+    $> howto --addKwd "more,added" scripttest
+
+
+  Replace the keywords of a doc:
+
+    $> howto -x "sripttrash" scripttest
+
+"""
+
+def editHelp():
+
+    return """
+    1. Intro 
+    ---------
+
+    HowTo's master format is Rest (although MarkDown is supported and 'should' work). Using
+    vim editor and ciemat.vim plugin may make things easier for you, as it contains some
+    mappings to accelerate common (and not so common) ReST constructions. 
+
+    E.g. if you want to enter some code/literal, you should either use '::' and a separate
+    line, or enclose inline text within '``' strings. The latter can be applied to visually
+    selected text by pressing 'el'.
+
+    Or if you want bold text, you need to enclose it within '**' strings. This can be produced
+    around selected text with 'eb'.
+
+    Please use ':Ciemaps' command at vim for a complete list of supported ReST/Howto maps.
+
+
+
+    2. Sections and TOC
+    --------------------
+
+    Most documents are expected to contain titles, subtitles and so on (you may use any
+    underline characters, from higher to lower rank, provided that you are consistent), and,
+    usually, a table of contents (TOC).
+
+    E.g.:
+
+      My title
+      *********
+
+      My Chapter
+      ===========
+
+      My section
+      -----------
+
+    BUT NOTE: if you just want a short note, do that! No need for titles or TOC in that case.
+
+    Anyway, if you want a TOC, you just need to introduce the following lines in your doc:
+
+      .. contents:: Table of Contents
+      .. sectnum::
+
+    If you use cimat.vim, you just need to press 'Alt-t' and those two lines will be added.
+
+
+
+    3. Images
+    ----------
+
+    Images are supported by just including the standard ReST code for this *and* making sure
+    that the URL of the image points to a valid directory in the howtos server. In addition,
+    the image file itself must be stored in the server (in the appropriate dir) manually
+    (i.e., by means other than this tool). 
+
+    In particular, my first approximation will be to always point images to 
+    '/howtos/pics/<image-filename>', with a line like:
+
+       .. figure:: /howtos/pics/figure.jpg
+
+    and, thus, storing the image file at howtoServer:/var/www/html/howtos/pics/
+
+    Note that if you are using ciemat.vim, the ReST part can be achieved by entering the file
+    name in a line of its own, visually selecting it and pressing 'Alt-f'. (Of course, you
+    still need to upload the image file to the server!).
+
+
+
+    4. Links among HowTo docs
+    --------------------------
+
+    Links to other docs are supported by including a normal ReST link and then define it
+    to point it to: 'howtos/<hId>', where 'hId' is the human-friendly ID stored in each
+    doc for links (displayed in browser version as 'Human-friendly link'). 
+    
+    Example:
+
+      Please, refer to `accion social HowTo doc`__
+      .. _`accion social HowTo doc`: howtos/accion-social
+
+    Note that if you are using 'ciemat.vim', this is achievable by just visually selecting
+    the anchor text ("accion social" above) and pressing 'Alt-l', which will insert the
+    ReST code for the link (last line in the snippet above).
+"""
+
+
+def raiseExc(page, msg="interacting with the remote DB"):
+    """
+    Raise a new exception based on the contents of the received HTML from server.
+    """
+    messg =  "Error {0}.\n------------------------------\n".format(msg) 
+    messg += "Reason: {0}. Code: {1}\n".format(page.reason, page.status_code) 
+    messg += "Returned HTML:\n{0}\n-------------------------------\n".format(page.text.strip())
+
+    raise Exception(messg)
+
+
+class howtoIface(object):
+
+    def __init__(self, baseurl, args):
+        self.url = baseurl
+        self.args = args
+
+
+    def getList(self, longl=False):
+        """
+        Queries the remote HowTo's DB for the list of docs matching the specified filters.
+        Returns a list of doc names, ids and kwords.
+        """
+
+        params = {'action': 'list', 'longl': longl}
+        params['tf'] = self.args.tpattern
+        params['kwf'] = self.args.kpattern
+        params['Nkwf'] = self.args.Nkpattern
+        params['bf'] = self.args.cpattern
+        params['filtOp'] = '$or' if self.args.orOp else '$and'
+        params['qfClicked'] = 'N_ops'
+        if self.args.ops:      params['qfClicked'] = 'NULL'
+        if self.args.onlyops:  params['qfClicked'] = 'ops'
+
+        page = requests.get(self.url, params=params)
+    #    print(page.text)
+    #
+        hList = json.loads(page.text)
+
+        return hList
+
+    
+    def getMeta(self, docId, isHId=False, longl=False):
+        """
+        Queries the remote HowTo's DB for the metadata of a doc with specified ID.
+        """
+        if isHId:  params = {'action': 'getMetaHId', 'hId': docId, 'longl': longl}
+        else:      params = {'action': 'getMeta',    'id':  docId, 'longl': longl}
+
+        page = requests.get(self.url, params=params)
+        if not page.ok:  raiseExc(page, msg="retrieving document from remote DB")
+
+        return json.loads(page.text)
+
+
+    def selectOne(self, hList):
+        """
+        Ask the user which shown doc he wants to open/edit/...
+        """
+
+        # If there's just one match and we're not removing or modifying kwords,
+        # just proceed with this match (don't bother to ask)
+        if (len(hList) == 1) and (not (self.args.rm or self.args.xwords)):
+            return 1
+           
+        try: 
+            chosen = int(raw_input("\nChoose doc (1-{0}): ".format(len(hList))))
+        except:
+            chosen = 0
+
+        if (chosen < 1) or (chosen > len(hList)):
+            chosen = 0
+
+        return chosen
+
+
+    def getDoc(self, docId, fmt='rst'):
+        """
+        Given the HowTo doc id, gets the doc in the specified format from the remote DB
+        and and stores it in tmp file. 
+        
+        Returns both the retrieved text and the name of the created tmp file.
+        """
+        params = {'id': docId, 'format': fmt}
+        page = requests.get(self.url, params=params)
+
+        if not page.ok:  raiseExc(page, msg="retrieving documents from remote DB")
+
+        docVersion = ''
+        docVersion = int(page.headers['CIEMAT_howtos_version'])
+
+        f, ftemp = tempfile.mkstemp(suffix=FORMATS[fmt])
+        f = os.fdopen(f, 'w')
+        # Handle encoding for Python2, or fallback to do nothing (Python 3)
+        try:
+            text = page.text.encode('utf-8')
+            f.write(text)
+        except TypeError:
+            text = page.text
+            f.write(text)
+        f.close()
+
+        return text, ftemp, docVersion
+
+
+    def uploadDoc(self, ftemp=None, docId=None, text=None, fmt='rst', vers=None, author=None):
+        """
+        Upload the context of the passed file 'ftemp' to the HowTo's DB to update the doc
+        with id 'docId' or to become a new doc if no id is specified. 
+        
+        If 'text' is passed, then skip upload when contents of 'ftemp' are identical to
+        'text' (no modification was made).
+
+        If no 'ftemp' is passed, then just request the creation of a new doc (with base
+        contents).
+        """
+        params = {}
+
+        if ftemp:
+
+            f = open(ftemp)
+            contents = f.read()
+            f.close()
+            params = {'contents': contents}
+
+            if text and (contents == text):  return 0
+
+        if author:  params['author'] = author
+
+        if docId:  
+            params.update({'action': 'save', 'id': docId, 'format': fmt})
+            if vers:    params['version'] = vers
+        else:      
+            params.update({'action': 'addHowto', 'howtoName': self.args.new, 'keywords': self.args.xwords})
+
+        page = requests.put(self.url, params)
+
+        if not page.ok:  
+            msg = "uploading document"
+            if page.status_code == 409:
+                msg += ": incorrect version. Doc changed while you were editing?"
+            raiseExc(page, msg=msg)
+
+        if not docId:  
+            try:     docId = json.loads(page.text)['id']
+            except:  raiseExc(page, msg="decoding returned json")
+
+        return docId
+
+
+    def rmDoc(self, docId):
+        """
+        Delete HowTo doc with specified 'docId' in remote DB.
+        """
+        params = {'id': docId, 'action': 'remove'}
+
+        page = requests.put(self.url, params)
+
+        if not page.ok:  raiseExc(page, msg="deleting document")
+
+
+    def updateKwords(self, docIds, replace='yes'):
+        """
+        Replace keywords of doc in remote DB.
+        """
+        params = {'id': docIds, 'keywords': self.args.xwords, 'action': 'changeKwords',
+                  'replace': replace}
+
+        page = requests.put(self.url, params)
+
+        if not page.ok:  raiseExc(page, msg="updating keywords in remote DB")
+
+
+    def updateName(self, docId):
+        """
+        Replace doc's name in remote DB.
+        """
+        params = {'id': docId, 'name': self.args.name, 'action': 'changeName'}
+
+        page = requests.put(self.url, params)
+
+        if not page.ok:  raiseExc(page, msg="updating doc name in remote DB")
+
+
+    def updateHId(self, docId):
+        """
+        Replace doc's hId in remote DB.
+        """
+        params = {'id': docId, 'hId': self.args.xhId, 'action': 'changeLink'}
+
+        page = requests.put(self.url, params)
+
+        if not page.ok:  raiseExc(page, msg="updating doc hId in remote DB")
+
+
+    def updateCreator(self, docIds):
+        """
+        Replace doc's creator (author) in remote DB.
+        """
+        params = {'id': docIds, 'author': self.args.creator, 'action': 'changeCreator'}
+
+        page = requests.put(self.url, params)
+
+        if not page.ok:  raiseExc(page, msg="updating doc creator in remote DB")
+
+
+    def getFrecList(self):
+        """
+        Query the server for recent/common docs/kwords lists and show them.
+        """
+        params = {'action': 'getFrecList', 'filtOp': self.args.frecListOp}
+        page = requests.get(self.url, params=params)
+
+        if not page.ok:  raiseExc(page, msg="retrieving frecuency list")
+
+        return page.text
+
+
+    def errorSaving(self, ex, ftemp, docId, docVers):
+        """
+        Show error information and help when problem occurs on saving (usually caused by
+        Rest parsing).
+        """
+        err("\n ** ERROR when saving doc **\n")
+        err("{}".format(ex))
+        err("Find a copy of your probably not-uploaded doc at {}\n".format(ftemp))
+        err("Hint: you may want to...")
+        err("\n    vi {0}      # fix doc errors".format(ftemp))
+        err("\n    howto -i {0} --id {1} --vers {2} -e    # upload it".format(ftemp, docId, docVers))
+
+
+#    def newDoc(self):
+#        """
+#        Create a temp RST file with some basic contents and open it for user edition.
+#        """
+#        f, ftemp = tempfile.mkstemp(suffix='.rst')
+#        f = os.fdopen(f, 'w')
+#        f.write(BASE_TEXT)
+#        f.close()
+#
+#        call([EDITOR, ftemp])
+#
+#        return ftemp
+
+
+
+####   MAIN   ####
+def main():
+    """
+     Performes the main task of the script (invoked directly).
+     For information on its functionality, please call the help function.
+    """
+    
+    # Options
+    helpstr = """
+----------------------  
+
+Command line utility to interact with the HowTo documentation system.
+
+----------------------  
+
+DOCUMENT SELECTION
+
+  For actions on existing docs, the command shows relevant docs and asks the user to
+  select one, unless --allmatch is used (press just Enter to abort). Docs filtering: 
+
+   - Given pattern (-t/-k/-c / pos arg): docs matching pattern. 
+   - IDs (--id/--hid): doc specified ID/hId (if any).
+   - No argument: all existing docs.
+
+ACTIONS
+
+  - Create a new doc (-n)
+  
+  - List matching docs (-l), recently/commonly read docs or keywords (--show* options)
+
+  - Act on selected doc. One of (mutually exclusive, except -x with -n/-N):
+
+      paging (default), printing, storing to a file  (-p, -o)
+      editing, removing  (-e, -r)
+      modify:  doc's name, keywords, hId, creator  (-N, -x, -H, -C)
+
+    Opt -i is usable with -e/-n to read contents from a file (instead of text editor).
+
+SETTINGS
+
+  Supported formats (-f): Rest ('rst', default), markdown ('md'), 'html' (not edition), 
+                          and 'pdf' (only for -o).                    
+  Editor: default is 'vim'. Can be overriden with env vars 'EDITOR' or (pref) 'HOWTO_EDITOR'.
+
+EXAMPLES
+
+  See examples of use with --examples (basic) and --adv-examples (advanced).
+
+----------------------  
+"""
+
+    # Create parser with general help information
+    parser = ArgumentParser(prog="howto", description=helpstr, formatter_class=RawTextHelpFormatter)
+
+    # Set the version
+    parser.add_argument('--version', action='version', version='%(prog)s 2.0')
+
+    # Option verbose ('store_true' option type)
+    helpstr = "Be verbose (show additional information)"
+    parser.add_argument("--verbose", "-v", dest="verb", help=helpstr, action="store_true")
+
+    # Option usage 
+    class UsageAction(Action):
+        def __init__(self, option_strings, dest, nargs=None, **kwargs):
+            Action.__init__(self, option_strings, dest, nargs=0, **kwargs)
+        def __call__(self, parser, namespace, values, option_string=None):
+            parser.print_usage()
+            sys.exit(0)
+    helpstr = "Show usage information"
+    parser.add_argument("-u", "--usage", help=helpstr, action=UsageAction)
+    def usage():
+        parser.print_usage() 
+
+    helpstr = "Show some edition help info."
+    parser.add_argument("--edithelp", dest="edithelp", help=helpstr, action="store_true")
+
+    helpstr = "Show basic examples."
+    parser.add_argument("--examples", dest="examples", help=helpstr, action="store_true")
+
+    helpstr = "Show advanced examples."
+    parser.add_argument("--adv-examples", dest="advExamples", help=helpstr, action="store_true")
+
+    helpstr = "Select the doc with id equal to ID"
+    parser.add_argument("--id", dest="id", help=helpstr)
+
+    helpstr = "Select the doc with hId equal to HID"
+    parser.add_argument("--hid", dest="hId", help=helpstr)
+    
+    helpstr = "Look for docs matching TPATTERN in the doc name (may use N times)"
+    parser.add_argument("-t", "--title", dest="tpattern", help=helpstr, action="append")
+    
+    helpstr = "Look for docs matching KPATTERN in the keywords (may use N times)"
+    parser.add_argument("-k", "--kwords", dest="kpattern", help=helpstr, action="append")
+    
+    helpstr = "Exclude docs matching NKPATTERN in the keywords (may use N times)"
+    parser.add_argument("-X", "--Nkwords", dest="Nkpattern", help=helpstr, action="append")
+
+    helpstr = "Look for docs matching CPATTERN in whole contents (may use N times)"
+    parser.add_argument("-c", "--contents", dest="cpattern", help=helpstr, action="append")
+    
+    helpstr = "Include *also* docs matching 'ops' keyword (excluded by default)"
+    parser.add_argument("--ops", dest="ops", help=helpstr, action="store_true")
+
+    helpstr = "Include *only* docs matching 'ops' keyword (excluded by default)"
+    parser.add_argument("--ops2", dest="onlyops", help=helpstr, action="store_true")
+
+    helpstr = "Combine different matching filters using OR operator, instead of default AND"
+    parser.add_argument("--or", dest="orOp", help=helpstr, action="store_true")
+    
+    group = parser.add_mutually_exclusive_group()
+
+    helpstr = "List all matching doc (instead of paging)"
+    group.add_argument("-l", "--list", dest="list", help=helpstr, action="store_true")
+    
+    helpstr = "Edit selected doc (instead of paging)"
+    group.add_argument("-e", "--edit", dest="edit", help=helpstr, action="store_true")
+    
+    helpstr = "Add new howto with specified name (you may use -x also)"
+    group.add_argument("-n", "--new", dest="new", nargs='?', const='__EMPTY__', help=helpstr)
+
+    helpstr = "Set specified keywords (comma-separated) for new doc (use with -n) or" \
+              "\nselected doc (replaces previous keywords)." \
+              "\nIf used with -e/-p/-l/-r, it has no effect."
+    parser.add_argument("-x", "--xwords", dest="xwords", help=helpstr)
+
+    helpstr = "Add specified keywords (comma-separated) to existing howto."
+    group.add_argument("--addKwd", dest="addKwd", help=helpstr, action="store")
+
+    helpstr = "Change creator of selected doc to specified CREATOR"
+    group.add_argument("-C", "--creator", dest="creator", help=helpstr)
+
+    helpstr = "Change name of selected doc to specified NAME"
+    group.add_argument("-N", "--name", dest="name", help=helpstr)
+
+    helpstr = "Change hId (human-friendly link) of selected doc to specified HID."
+    group.add_argument("-H", "--xhid", dest="xhId", help=helpstr)
+
+    helpstr = "Remove selected doc"
+    group.add_argument("-r", "--rm", dest="rm", help=helpstr, action="store_true")
+
+    helpstr = "Print selected doc (instead of paging)"
+    group.add_argument("-p", "--print", dest="print", help=helpstr, action="store_true")
+    
+    helpstr = "Store selected doc to specified FILE (and return doc's version)"
+    group.add_argument("-o", "--outfile", dest="outfile", help=helpstr)
+    
+    helpstr = "Read contents to overwrite selected doc from specified INFILE (must use --vers!)"
+    parser.add_argument("-i", "--infile", dest="infile", help=helpstr)
+
+    helpstr = "Set the version to use for the uploaded document (only usable with --infile)"
+    parser.add_argument("--vers", dest="version", help=helpstr)
+
+    helpstr = "Contact ES server in specified host instead of default"
+    parser.add_argument("-s", "--server", dest="server", help=helpstr, default='gaer0012.ciemat.es')
+
+    helpstr = "Use specified format instead of default ('rst')"
+    parser.add_argument("-f", "--format", dest="fmt", help=helpstr, action="store", default='rst')
+    
+    helpstr = "Apply action to all matching docs (not just one, as default)"
+    parser.add_argument("--allmatch", dest="allmatch", help=helpstr, action="store_true")
+
+    helpstr = "Show commonly consulted docs"
+    group.add_argument("--show-common-docs", dest="frecListOp", action="store_const", const="commonDocs", help=helpstr)
+    #
+    helpstr = "Show recently consulted docs"
+    group.add_argument("--show-recent-docs", dest="frecListOp", action="store_const", const="recentDocs", help=helpstr)
+    #
+    helpstr = "Show commonly consulted keywords"
+    group.add_argument("--show-common-kwords", dest="frecListOp", action="store_const", const="commonKwords", help=helpstr)
+    #
+    helpstr = "Show recently consulted keywords"
+    group.add_argument("--show-recent-kwords", dest="frecListOp", action="store_const", const="recentKwords", help=helpstr)
+    
+    # Positional arguments
+    helpstr = "Look for docs matching PATTERN in the keywords"
+    parser.add_argument("pattern", help=helpstr, nargs='*')
+
+    # Do parse options
+    args = parser.parse_args()
+
+    # Shortcut for verbose
+    verb = args.verb
+    
+    # Read user settings (if any)
+    author = None
+    try:
+        parser = SimpleConfigParser()
+        parser.read(os.environ['HOME']+'/.howtorc')
+        author = parser.get('author')
+    except:
+        pass
+
+    if args.edithelp:
+         print(editHelp())
+         return 0
+
+    if args.examples:
+         print(basicExamples())
+         return 0
+
+    if args.advExamples:
+         print(advExamples())
+         return 0
+
+    if args.infile and ((not (args.new or args.edit)) or (not args.version)):
+        err("Option -i can only be used together with -n/-e and requires --vers. Aborting.")
+        return 11
+
+    if not args.kpattern:  args.kpattern = []
+    args.kpattern += args.pattern
+    
+    if args.new and args.pattern:
+        err("No pattern may be specified if -n is used. Aborting")
+        return 10
+
+    if args.fmt not in FORMATS:
+        err("ERROR: Unsupported format. Please specify one of: {}".format(FORMATS.keys()))
+        return 12
+    elif (args.fmt == 'pdf') and (not args.outfile):
+        err("ERROR: PDF format only supported for -o option.")
+        return 13
+
+    elif args.edit or args.new:
+        if args.fmt not in EDIT_FORMATS:
+            err("Unsupported format for edition. Please specify one of: {}".format(EDIT_FORMATS))
+            return 14
+        
+
+    #### REAL MAIN ####
+    myurl = 'http://' + args.server + CGI_PATH 
+    howtos = howtoIface(myurl, args)
+    
+    # First, the docs/kwords lists options
+    if args.frecListOp:
+        print(howtos.getFrecList())
+        return 0
+
+    # Now, check if we're adding a new doc
+    if args.new:
+
+        if args.new == '__EMPTY__':
+            args.new = raw_input("\nIntroduce doc name: ")
+
+        # Set some keywords, either those passed with -x or ask for some
+        if not args.xwords:
+            args.xwords = raw_input("\nIntroduce keywords (comma-separated): ")
+            args.xwords = args.xwords.split(',')
+            args.xwords = ','.join([x.strip() for x in args.xwords])
+#            args.xwords = args.new.split()
+#            args.xwords = ','.join(args.xwords)
+
+        # In order to properly support other formats, we must create it in RST first,
+        # then edit it normally with whatever specified format.
+        docId = howtos.uploadDoc(author=author)
+
+        # Get just-stored source for the doc and store it in tmp file
+        text, ftemp, docVers = howtos.getDoc(docId, args.fmt)
+
+        # Read from specified infile or open editor using temp file 
+        if args.infile:  
+            ftemp = args.infile
+            docVers = int(args.version)
+        else:            
+            call([EDITOR, ftemp])
+
+        # Now, if all OK, upload it to DB again, with proper contents
+        try: 
+            docId = howtos.uploadDoc(ftemp, docId, text, fmt=args.fmt, vers=docVers, author=author)
+            print('HowTo saved. Name: "{0}"  Keywords: {2}\n             id={1}  vers={3}  author={4}'.format(
+                   args.new, docId, args.xwords, docVers+2, author))
+        except Exception as ex:
+            howtos.errorSaving(ex, ftemp, docId, docVers)
+
+        # All done
+        return 0
+
+    # Initial listing
+    if args.id:  
+        elem = howtos.getMeta(args.id, longl=verb)
+        hList = [elem]
+    elif args.hId:  
+        elem = howtos.getMeta(args.hId, isHId=True, longl=verb)
+        hList = [elem]
+    else:
+        hList = howtos.getList(longl=verb)
+
+    if not hList: 
+        print("No matching document")
+        return 0
+
+    print()
+    for idx, val in enumerate(hList):
+        p = hList[idx]
+        print("{0:3} - {1:50.50} Kwd: {2}".format(idx+1, p['name'], p["kwords"].replace(',', ' , ')))
+        if verb:
+            print("       id: {0}  v:{1:<3} creator:{2:8} lastUpdate: {4}  by: {3:8}".format(
+                       p['id'], p['version'], p['creator'], p['lastUpdater'], p['rstTime']))
+            print("       hId: {1}  -->  http://{0}/howtos/{1}\n".format(
+                       args.server.replace('.ciemat.es', ''), p['hId']))
+
+    # If just asked to list, exit    
+    if args.list:  return 0
+
+    severalMatches = False
+
+    if args.allmatch:
+
+        if not (args.rm or args.xwords or args.addKwd or args.creator):
+            err("\nOption --allmatch can only be used with one of --rm/--xwords/--addKwd/--creator")
+            return 14
+
+        docIds = [x['id'] for x in hList]
+        docNames = [x['name'] for x in hList]
+
+    else:
+
+        # Select one doc (or exit)
+        chosen = howtos.selectOne(hList)
+        if not chosen:  
+            print('Cancelled')
+            return 0
+        docId = hList[chosen-1]['id']
+        docName = hList[chosen-1]['name']
+
+        # Extra vars for --rm/xwords/addKwd
+        docIds = [docId]
+        docNames = [docName]
+
+        # Get rst source for the doc and store it in tmp file
+        text, ftemp, docVers = howtos.getDoc(docId, args.fmt)
+
+    # General actions on selected document
+    if args.edit:
+        if args.infile:  
+            ftemp = args.infile
+            docVers = int(args.version)
+        else:            
+            call([EDITOR, ftemp])
+        try:
+            howtos.uploadDoc(ftemp, docId, text, fmt=args.fmt, vers=docVers, author=author)
+            print('Document updated: Name: "{0}"\n                  id={1}  vers={2}  author={3}'.format(
+                   docName, docId, docVers+1, author))
+        except Exception as ex:
+            howtos.errorSaving(ex, ftemp, docId, docVers)
+
+    elif args.print:
+        print("\n\n" + text)
+
+    elif args.outfile:
+        f = open(args.outfile, 'w')
+        f.write(text)
+        f.close()
+        print('\nHowTo "{0}" stored at "{1}"\nDoc id: {2}\nDoc version: {3}'.format(docName,args.outfile,docId,docVers))
+
+    elif args.rm:
+        print("\nYou are asking to delete {0} doc(s): {1}".format(len(docIds), docNames))
+        confirm = raw_input("\nPlease, type 'y' to confirm the deletion: ")
+        if confirm != "y":
+            print("Aborting.")
+            return 0
+
+        name = howtos.rmDoc(docIds)
+        print("\nDocument(s) removed:", ', '.join(docNames))
+        
+    elif args.name:
+        howtos.updateName(docId)
+        print("Name updated:", args.name)
+        
+    elif args.xhId:
+        howtos.updateHId(docId)
+        print("hId updated:", args.xhId)
+        
+    elif args.creator:
+        howtos.updateCreator(docIds)
+        print("\nCreator updated:", ', '.join(docNames))
+        
+    elif args.xwords:
+        howtos.updateKwords(docIds, replace='yes')
+        print("\nKeywords updated:", ', '.join(docNames))
+        
+    elif args.addKwd:
+        args.xwords = args.addKwd
+        howtos.updateKwords(docIds, replace='no')
+        print("\nKeywords updated:", ', '.join(docNames))
+        
+    else:
+        call([PAGER, ftemp])
+    
+
+    # Exit successfully
+    return 0
+
+
+###    SCRIPT    ####
+if __name__=="__main__":
+    sys.exit(main())
